@@ -321,15 +321,15 @@ else:
     
     # Usando st.markdown para centralizar e formatar o texto pequeno
     with col_c1:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Orçado</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Orçado(Todos os Períodos)</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", 
                     unsafe_allow_html=True)
     with col_c2:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Realizado</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Realizado(Todos os Períodos)</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", 
                     unsafe_allow_html=True)
     with col_c3:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Diferença</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Diferença(Todos os Períodos)</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", 
                     unsafe_allow_html=True)
 
