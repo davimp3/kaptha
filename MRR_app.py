@@ -27,7 +27,7 @@ def format_delta_string(current, previous):
     delta_pct = delta_val / previous
     delta_val_formatted = f"{delta_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     if delta_val > 0: delta_val_formatted = f"+{delta_val_formatted}"
-    # [ALTERAÇÃO] Adicionado "vs Mês Anterior"
+    # Adicionado "vs Mês Anterior"
     return f"R$ {delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 def format_clients(value):
@@ -36,6 +36,9 @@ def format_clients(value):
         numeric_value = float(value)
         if pd.isna(numeric_value):
             return "0 clientes"
+        # Se for 1, mostra "cliente" no singular
+        if int(numeric_value) == 1 or int(numeric_value) == -1:
+             return f"{int(numeric_value)} cliente"
         return f"{int(numeric_value)} clientes"
     except (ValueError, TypeError):
         return "0 clientes"
@@ -49,40 +52,64 @@ def format_delta_clients(current, previous):
     delta_val = current - previous
     delta_pct = delta_val / previous
     delta_val_formatted = f"{int(delta_val):+}" # Ex: +3 ou -1
-    # [ALTERAÇÃO] Adicionado "vs Mês Anterior"
+    # Adicionado "vs Mês Anterior"
     return f"{delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 
 # --- CARREGA OS DADOS JÁ NUMÉRICOS ---
 df = load_dashboard_data()
 
+# --- PRÉ-CÁLCULOS GERAIS (MOVECIDO PARA CIMA) ---
+acumulado_total_geral = 0.0
+total_orcado_geral = 0.0 
+all_months_list = []
+
+if not df.empty:
+    # Calcula o acumulado total
+    acumulado_total_geral = df['Receita Realizada'].sum()
+    total_orcado_geral = df['Receita Orcada'].sum() 
+    
+    # [MOVECIDO PARA CIMA] ORDENAÇÃO CRONOLÓGICA
+    # Define a ordem correta dos meses
+    month_order_pt = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ]
+    # Dicionário para mapear nome do mês para número (0-11)
+    month_map = {name: i for i, name in enumerate(month_order_pt)}
+
+    def get_sort_key(month_year_str):
+        """
+        Converte 'agosto/2025' em uma tupla (ano, num_mes)
+        para ordenação correta, ex: (2025, 7).
+        """
+        try:
+            # Garante que a string está em minúsculas para bater com o map
+            month_name_str, year_str = month_year_str.lower().split('/')
+            year = int(year_str)
+            # Usa .get() para evitar erro se o mês não for encontrado
+            month_num = month_map.get(month_name_str, -1) 
+            return (year, month_num)
+        except Exception:
+            # Retorna algo que vai para o início em caso de formato inesperado
+            return (0, 0)
+
+    # Ordena a lista de meses usando a nova chave personalizada
+    all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
+    
+
 # --- SIDEBAR DE FILTROS ---
 st.sidebar.header("Filtros do Dashboard")
 
 if not df.empty:
-    # ORDENAÇÃO CRONOLÓGICA (Corrigido)
-    month_order_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-                      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    month_map = {name: i for i, name in enumerate(month_order_pt)}
-
-    def get_sort_key(month_year_str):
-        try:
-            month_name_str, year_str = month_year_str.lower().split('/')
-            year = int(year_str)
-            month_num = month_map.get(month_name_str, -1) 
-            return (year, month_num)
-        except Exception:
-            return (0, 0)
-
-    all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
-    
+    # Agora 'all_months_list' está disponível aqui
     selected_months = st.sidebar.multiselect(
         "Selecione o(s) Mês(es)",
         options=all_months_list,
         default=all_months_list[-1:] if all_months_list else []
     )
 else:
-    all_months_list = []
+    # all_months_list já é [] por padrão
     selected_months = []
     st.sidebar.error("Não foi possível carregar os dados. Verifique a aba 'DADOS STREAMLIT'.")
 
@@ -114,6 +141,17 @@ else:
     total_avancado_orcado = current_data['Avancado Orcado'].sum()
     total_avancado_realizado = current_data['Avancado Realizado'].sum()
     total_avancado_diferenca = current_data['Avancado Diferenca'].sum()
+
+    # Receita por Plano (para o gráfico de pizza)
+    total_receita_essencial = current_data['Receita Essencial'].sum()
+    total_receita_vender = current_data['Receita Vender'].sum()
+    total_receita_avancado = current_data['Receita Avancado'].sum()
+
+    # [NOVO] Churn
+    # Garante que as colunas existem antes de somar
+    total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
+    total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
+    total_churn_diferenca = current_data['Churn Diferenca'].sum() if 'Churn Diferenca' in current_data else 0.0
 
 
     # --- 2. CÁLCULO DO PERÍODO ANTERIOR ---
@@ -166,8 +204,24 @@ else:
     delta_avancado_orcado_str = format_delta_clients(total_avancado_orcado, prev_avancado_orcado)
     delta_avancado_realizado_str = format_delta_clients(total_avancado_realizado, prev_avancado_realizado)
     delta_avancado_diferenca_str = format_delta_clients(total_avancado_diferenca, prev_avancado_diferenca)
+    
+    # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
+    st.subheader("Acumulado Total")
+    st.caption("Soma de toda a receita realizada em todos os períodos.")
+    
+    _col_ac_esq, col_ac_centro, _col_ac_dir = st.columns([0.3, 0.4, 0.3]) 
 
-    # --- 4. EXIBIÇÃO - SEÇÃO 1: MRR ---
+    with col_ac_centro: # Coloca no centro
+        st.metric(
+            "Receita Total (Geral)", 
+            format_currency(acumulado_total_geral),
+            border=True
+        )
+    
+    st.markdown("---") # Separador
+
+
+    # --- 5. EXIBIÇÃO - SEÇÃO 2: MRR ---
     st.subheader("MRR")
     st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
 
@@ -186,43 +240,44 @@ else:
         )
     st.markdown("---")
 
-    # --- 5. EXIBIÇÃO - SEÇÃO 2: ANÁLISE COMERCIAL (CLIENTES) ---
+    # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (CLIENTES) ---
     st.subheader("Análise Comercial")
     st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
     
     col1, col2, col3, col4 = st.columns([0.23, 0.23, 0.23, 0.31]) # Dando mais espaço ao gráfico
 
     with col1:
-        # [ALTERAÇÃO] Adicionado container com borda
+        # Cards de Clientes (Contagem)
         with st.container(border=True):
             st.markdown("<h6 style='text-align: center;'>Essencial</h6>", unsafe_allow_html=True)
-            # [ALTERAÇÃO] Removido border=True das métricas internas
             st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
             st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
             st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str, delta_color="inverse")
     
     with col2:
-        # [ALTERAÇÃO] Adicionado container com borda
+        # Cards de Clientes (Contagem)
         with st.container(border=True):
             st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
-            # [ALTERAÇÃO] Removido border=True das métricas internas
             st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
             st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
             st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str, delta_color="inverse")
 
     with col3:
-        # [ALTERAÇÃO] Adicionado container com borda
+        # Cards de Clientes (Contagem)
         with st.container(border=True):
             st.markdown("<h6 style='text-align: center;'>Avançado</h6>", unsafe_allow_html=True)
-            # [ALTERAÇÃO] Removido border=True das métricas internas
             st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
             st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
             st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str, delta_color="inverse")
 
     with col4:
-        st.markdown("<h6 style='text-align: center;'>Distribuição dos Planos (Realizado)</h6>", unsafe_allow_html=True)
+        # Gráfico de Pizza por Receita (Valor)
+        st.markdown("<h6 style='text-align: center;'>Distribuição da Receita (Realizado)</h6>", unsafe_allow_html=True)
         labels = ['Essencial', 'Controle', 'Avançado']
-        values = [total_essencial_realizado, total_vender_realizado, total_avancado_realizado]
+        values = [total_receita_essencial, total_receita_vender, total_receita_avancado]
+        
+        # Criação de dados customizados para o hover/texto
+        custom_data = [format_currency(v) for v in values]
         
         # Define as cores com base na sua imagem (tons de azul)
         colors = ['#06B6D4', '#3B82F6', '#1E40AF'] # Claro, Médio, Escuro
@@ -232,9 +287,14 @@ else:
                 labels=labels, 
                 values=values, 
                 hole=.4, 
-                # [ALTERAÇÃO] Mostra percentual e valor (contagem)
-                texttemplate='%{percent} (%{value})', 
+                
+                customdata=custom_data,
+                # [ALTERAÇÃO] Mostra SOMENTE o valor formatado
+                texttemplate='%{customdata}', 
                 textfont_size=12,
+                # [ALTERAÇÃO] Hover mostra percentual também
+                hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
+                
                 marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                 sort=False # Mantém a ordem Essencial, Controle, Avançado
             )])
@@ -250,41 +310,26 @@ else:
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Sem dados de clientes realizados para exibir o gráfico.")
+            st.info("Sem dados de receita por plano para exibir o gráfico.")
 
     st.markdown("---")
 
-    # --- 6. EXPANDER COM DETALHES DA COMPARAÇÃO ---
-    with st.expander("Detalhes da Comparação (Período Anterior)"):
-        if not previous_months:
-            st.info("Não há dados de período anterior para comparação (a seleção inclui o primeiro mês dos dados).")
-        else:
-            st.caption(f"Período anterior comparado: {', '.join(previous_months)}")
-            
-            st.markdown("<h6>Receita (Anterior)</h6>", unsafe_allow_html=True)
-            prev_col1, prev_col2, prev_col3 = st.columns(3)
-            with prev_col1:
-                st.metric("Orçado (Anterior)", format_currency(prev_orcado), border=True)
-            with prev_col2:
-                st.metric("Realizado (Anterior)", format_currency(prev_realizado), border=True)
-            with prev_col3:
-                st.metric("Diferença (Anterior)", format_currency(prev_diferenca), border=True)
-
-            st.markdown("<h6>Clientes (Anterior)</h6>", unsafe_allow_html=True)
-            prev_c1, prev_c2, prev_c3 = st.columns(3)
-            with prev_c1:
-                st.markdown("<p style='text-align: center;'>Essencial</p>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(prev_essencial_orcado), border=True)
-                st.metric("Realizado", format_clients(prev_essencial_realizado), border=True)
-                st.metric("Diferença", format_clients(prev_essencial_diferenca), border=True)
-            with prev_c2:
-                st.markdown("<p style='text-align: center;'>Controle</p>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(prev_vender_orcado), border=True)
-                st.metric("Realizado", format_clients(prev_vender_realizado), border=True)
-                st.metric("Diferença", format_clients(prev_vender_diferenca), border=True)
-            with prev_c3:
-                st.markdown("<p style='text-align: center;'>Avançado</p>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(prev_avancado_orcado), border=True)
-                st.metric("Realizado", format_clients(prev_avancado_realizado), border=True)
-                st.metric("Diferença", format_clients(prev_avancado_diferenca), border=True)
+    # --- 7. EXIBIÇÃO - SEÇÃO 4: CHURN (NOVO) ---
+    # Adicionado no lugar do expander removido
+    
+    col_c1, col_c2, col_c3 = st.columns(3)
+    
+    # Usando st.markdown para centralizar e formatar o texto pequeno
+    with col_c1:
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Orçado</p>"
+                    f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", 
+                    unsafe_allow_html=True)
+    with col_c2:
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Realizado</p>"
+                    f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", 
+                    unsafe_allow_html=True)
+    with col_c3:
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Diferença</p>"
+                    f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", 
+                    unsafe_allow_html=True)
 
