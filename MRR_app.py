@@ -147,7 +147,7 @@ else:
     total_receita_vender = current_data['Receita Vender'].sum()
     total_receita_avancado = current_data['Receita Avancado'].sum()
 
-    # [NOVO] Churn
+    # Churn
     # Garante que as colunas existem antes de somar
     total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
     total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
@@ -273,14 +273,15 @@ else:
     with col4:
         # Gráfico de Pizza por Receita (Valor)
         st.markdown("<h6 style='text-align: center;'>Distribuição da Receita (Realizado)</h6>", unsafe_allow_html=True)
+        # Os labels devem corresponder à ordem das cores
         labels = ['Essencial', 'Controle', 'Avançado']
         values = [total_receita_essencial, total_receita_vender, total_receita_avancado]
         
         # Criação de dados customizados para o hover/texto
         custom_data = [format_currency(v) for v in values]
         
-        # Define as cores com base na sua imagem (tons de azul)
-        colors = ['#06B6D4', '#3B82F6', '#1E40AF'] # Claro, Médio, Escuro
+        # [ALTERAÇÃO] Define as cores na ordem dos labels: Essencial, Controle (Vender), Avançado
+        colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
 
         if sum(values) > 0:
             fig = go.Figure(data=[go.Pie(
@@ -289,10 +290,10 @@ else:
                 hole=.4, 
                 
                 customdata=custom_data,
-                # [ALTERAÇÃO] Mostra SOMENTE o valor formatado
+                # Mostra SOMENTE o valor formatado
                 texttemplate='%{customdata}', 
                 textfont_size=12,
-                # [ALTERAÇÃO] Hover mostra percentual também
+                # Hover mostra percentual também
                 hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                 
                 marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
@@ -321,15 +322,15 @@ else:
     
     # Usando st.markdown para centralizar e formatar o texto pequeno
     with col_c1:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Orçado(Todos os Períodos)</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Orçado</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", 
                     unsafe_allow_html=True)
     with col_c2:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Realizado(Todos os Períodos)</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Realizado</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", 
                     unsafe_allow_html=True)
     with col_c3:
-        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Diferença(Todos os Períodos)</p>"
+        st.markdown(f"<p style='text-align: center; font-size: 0.9em; opacity: 0.8;'>Churn Diferença</p>"
                     f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", 
                     unsafe_allow_html=True)
 
