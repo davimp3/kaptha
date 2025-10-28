@@ -18,10 +18,9 @@ st.markdown("""
             padding-top: 0px !important; 
             margin-top: 0px !important;
         }
-        header {
-            visibility: hidden;
-            height: 0px !important;
-        }
+        
+        /* [REMOVIDO] O bloco 'header' que escondia a sidebar foi removido. */
+
         /* [ALTERAÇÃO] Ajusta padding geral da página para quase zero */
         .stApp {
             padding: 0.05rem !important; 
@@ -367,10 +366,10 @@ else:
                         sort=False 
                     )])
                     fig_mensal.update_layout(
-                        showlegend=True, # [ALTERAÇÃO] Adicionando legenda de volta
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(size=9)), # [ALTERAÇÃO] Legenda horizontal
-                        margin=dict(t=5, b=30, l=5, r=5), # [ALTERAÇÃO] Margens ajustadas para legenda
-                        height=210, # [ALTERAÇÃO] Gráfico um pouco maior para legenda
+                        showlegend=True, 
+                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
+                        margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
+                        height=210, 
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
@@ -399,10 +398,10 @@ else:
                     )])
                     
                     fig_geral.update_layout(
-                        showlegend=True, # [ALTERAÇÃO] Adicionando legenda de volta
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(size=9)), # [ALTERAÇÃO] Legenda horizontal
-                        margin=dict(t=5, b=30, l=5, r=5), # [ALTERAÇÃO] Margens ajustadas para legenda
-                        height=210, # [ALTERAÇÃO] Gráfico um pouco maior para legenda
+                        showlegend=True, 
+                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
+                        margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
+                        height=210, 
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
