@@ -9,9 +9,9 @@ st.set_page_config(page_title="Dashboard MMR", layout="wide")
 # --- [NOVO] AJUSTE DE CSS PARA REMOVER PADDING SUPERIOR ---
 st.markdown("""
     <style>
-        /* Reduz o padding (espaçamento) no topo do container principal */
+        /* [ALTERAÇÃO] Reduz o padding (espaçamento) no topo do container principal */
         [data-testid="stAppViewContainer"] > .main {
-            padding-top: 1rem; 
+            padding-top: 0.5rem; 
         }
     </style>
     """, unsafe_allow_html=True)
@@ -225,7 +225,6 @@ else:
     
     if view_to_show == 'MRR':
         # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
-        # [ALTERAÇÃO] Títulos removidos
         st.caption(f"Período selecionado para o restante do dashboard: {', '.join(sorted(selected_months, key=get_sort_key))}")
 
         
@@ -258,14 +257,11 @@ else:
         
     else: # view_to_show == 'COMERCIAL'
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (CLIENTES) ---
-        # [ALTERAÇÃO] Título removido
         st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
         
-        # [ALTERAÇÃO] Layout de 2 colunas: Cards na esquerda, Gráficos na direita
         col_cards, col_charts = st.columns([0.6, 0.4]) # 60% para cards, 40% para gráficos
 
         with col_cards:
-            # Colunas aninhadas para os cards
             c1, c2, c3 = st.columns(3) 
             with c1:
                 with st.container(border=True):
@@ -288,14 +284,12 @@ else:
                     st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
                     st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str)
         
-        # Cores para os gráficos
         labels = ['Essencial', 'Controle', 'Avançado']
         colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
 
         with col_charts:
-            # [ALTERAÇÃO] Gráficos empilhados dentro da segunda coluna
             
-            # [NOVO] Gráfico de Pizza por Receita (MENSAL)
+            # Gráfico de Pizza por Receita (MENSAL)
             st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
             values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
             custom_data_mensal = [format_currency(v) for v in values_mensal]
@@ -316,7 +310,7 @@ else:
                     showlegend=True,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     margin=dict(t=20, b=20, l=20, r=20),
-                    height=300,
+                    height=250, # [ALTERAÇÃO] Altura reduzida
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(color="white") 
@@ -326,7 +320,7 @@ else:
                 st.info("Sem dados de receita mensal para exibir o gráfico.")
 
 
-            # Gráfico de Pizza por Receita (GERAL - o que já existia)
+            # Gráfico de Pizza por Receita (GERAL)
             st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
             values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
             custom_data_geral = [format_currency(v) for v in values_geral]
@@ -348,7 +342,7 @@ else:
                     showlegend=True,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     margin=dict(t=20, b=20, l=20, r=20),
-                    height=300,
+                    height=250, # [ALTERAÇÃO] Altura reduzida
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(color="white") 
