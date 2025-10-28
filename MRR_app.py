@@ -2,15 +2,26 @@ import streamlit as st
 import pandas as pd
 from data_loader.loader import load_dashboard_data
 import plotly.graph_objects as go
-from streamlit_autorefresh import st_autorefresh # <--- 1. CORREÇÃO AQUI
+from streamlit_autorefresh import st_autorefresh # Para o rodízio
 
 st.set_page_config(page_title="Dashboard MMR", layout="wide")
 
+# --- [NOVO] AJUSTE DE CSS PARA REMOVER PADDING SUPERIOR ---
+st.markdown("""
+    <style>
+        /* Reduz o padding (espaçamento) no topo do container principal */
+        [data-testid="stAppViewContainer"] > .main {
+            padding-top: 1rem; 
+        }
+    </style>
+    """, unsafe_allow_html=True)
+# --- FIM DO AJUSTE DE CSS ---
+
+
 # --- FUNÇÕES DE FORMATAÇÃO ---
-# (As funções format_currency, format_delta_string, format_clients, etc.
-# são idênticas ao seu código anterior)
 
 def format_currency(value):
+# ... (o restante do código permanece exatamente o mesmo) ...
     """Formata um valor numérico como moeda BRL."""
     try:
         numeric_value = float(value)
@@ -106,7 +117,6 @@ else:
 view_to_show = 'MRR' 
 
 if auto_rotate_views:
-    # <--- 2. CORREÇÃO AQUI
     count = st_autorefresh(interval=10000, key="view_switcher")
     
     if count % 2 == 1:
@@ -148,10 +158,15 @@ else:
     total_avancado_realizado = current_data['Avancado Realizado'].sum()
     total_avancado_diferenca = current_data['Avancado Diferenca'].sum()
 
-    # Receita por Plano (para o gráfico de pizza)
+    # Receita por Plano (GERAL - para o gráfico da direita)
     total_receita_essencial = current_data['Receita Essencial'].sum()
     total_receita_vender = current_data['Receita Vender'].sum()
     total_receita_avancado = current_data['Receita Avancado'].sum()
+
+    # Receita por Plano (MENSAL - para o gráfico da esquerda)
+    total_receita_essencial_mensal = current_data['Receita Essencial Mensal'].sum() if 'Receita Essencial Mensal' in current_data else 0.0
+    total_receita_vender_mensal = current_data['Receita Vender Mensal'].sum() if 'Receita Vender Mensal' in current_data else 0.0
+    total_receita_avancado_mensal = current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0.0
 
     # Churn
     total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
@@ -210,9 +225,7 @@ else:
     
     if view_to_show == 'MRR':
         # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
-        st.subheader("Acumulado Total")
-        st.caption("Soma de toda a receita realizada em todos os períodos.")
-        # [ALTERAÇÃO 1] Adicionado caption com meses selecionados
+        # [ALTERAÇÃO] Títulos removidos
         st.caption(f"Período selecionado para o restante do dashboard: {', '.join(sorted(selected_months, key=get_sort_key))}")
 
         
@@ -239,61 +252,67 @@ else:
                 "Diferença", 
                 format_currency(total_diferenca), 
                 delta=delta_diferenca_str, 
-                delta_color="inverse",
                 border=True 
             )
         st.markdown("---")
         
     else: # view_to_show == 'COMERCIAL'
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (CLIENTES) ---
-        st.subheader("Análise Comercial")
+        # [ALTERAÇÃO] Título removido
         st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
         
-        col1, col2, col3, col4 = st.columns([0.23, 0.23, 0.23, 0.31]) 
+        # [ALTERAÇÃO] Layout de 2 colunas: Cards na esquerda, Gráficos na direita
+        col_cards, col_charts = st.columns([0.6, 0.4]) # 60% para cards, 40% para gráficos
 
-        with col1:
-            with st.container(border=True):
-                st.markdown("<h6 style='text-align: center;'>Essencial</h6>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
-                st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
-                st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str, delta_color="inverse")
+        with col_cards:
+            # Colunas aninhadas para os cards
+            c1, c2, c3 = st.columns(3) 
+            with c1:
+                with st.container(border=True):
+                    st.markdown("<h6 style='text-align: center;'>Essencial</h6>", unsafe_allow_html=True)
+                    st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
+                    st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
+                    st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str)
+            
+            with c2:
+                with st.container(border=True):
+                    st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
+                    st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
+                    st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
+                    st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str)
+
+            with c3:
+                with st.container(border=True):
+                    st.markdown("<h6 style='text-align: center;'>Avançado</h6>", unsafe_allow_html=True)
+                    st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
+                    st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
+                    st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str)
         
-        with col2:
-            with st.container(border=True):
-                st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
-                st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
-                st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str, delta_color="inverse")
+        # Cores para os gráficos
+        labels = ['Essencial', 'Controle', 'Avançado']
+        colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
 
-        with col3:
-            with st.container(border=True):
-                st.markdown("<h6 style='text-align: center;'>Avançado</h6>", unsafe_allow_html=True)
-                st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
-                st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
-                st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str, delta_color="inverse")
+        with col_charts:
+            # [ALTERAÇÃO] Gráficos empilhados dentro da segunda coluna
+            
+            # [NOVO] Gráfico de Pizza por Receita (MENSAL)
+            st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
+            values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
+            custom_data_mensal = [format_currency(v) for v in values_mensal]
 
-        with col4:
-            # [ALTERAÇÃO 2] Removido "(Realizado)" do título
-            st.markdown("<h6 style='text-align: center;'>Distribuição da Receita</h6>", unsafe_allow_html=True)
-            labels = ['Essencial', 'Controle', 'Avançado']
-            values = [total_receita_essencial, total_receita_vender, total_receita_avancado]
-            custom_data = [format_currency(v) for v in values]
-            colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
-
-            if sum(values) > 0:
-                fig = go.Figure(data=[go.Pie(
+            if sum(values_mensal) > 0:
+                fig_mensal = go.Figure(data=[go.Pie(
                     labels=labels, 
-                    values=values, 
+                    values=values_mensal, 
                     hole=.4, 
-                    customdata=custom_data,
+                    customdata=custom_data_mensal,
                     texttemplate='%{customdata}', 
                     textfont_size=12,
                     hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                     marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                     sort=False 
                 )])
-                
-                fig.update_layout(
+                fig_mensal.update_layout(
                     showlegend=True,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     margin=dict(t=20, b=20, l=20, r=20),
@@ -302,9 +321,41 @@ else:
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(color="white") 
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig_mensal, use_container_width=True)
             else:
-                st.info("Sem dados de receita por plano para exibir o gráfico.")
+                st.info("Sem dados de receita mensal para exibir o gráfico.")
+
+
+            # Gráfico de Pizza por Receita (GERAL - o que já existia)
+            st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
+            values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
+            custom_data_geral = [format_currency(v) for v in values_geral]
+
+            if sum(values_geral) > 0:
+                fig_geral = go.Figure(data=[go.Pie(
+                    labels=labels, 
+                    values=values_geral, 
+                    hole=.4, 
+                    customdata=custom_data_geral,
+                    texttemplate='%{customdata}', 
+                    textfont_size=12,
+                    hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
+                    marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
+                    sort=False 
+                )])
+                
+                fig_geral.update_layout(
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                    margin=dict(t=20, b=20, l=20, r=20),
+                    height=300,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white") 
+                )
+                st.plotly_chart(fig_geral, use_container_width=True)
+            else:
+                st.info("Sem dados de receita geral para exibir o gráfico.")
 
         st.markdown("---")
 
