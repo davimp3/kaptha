@@ -367,9 +367,10 @@ else:
                         sort=False 
                     )])
                     fig_mensal.update_layout(
-                        showlegend=False, # [ALTERAÇÃO] Removi a legenda para economizar espaço
-                        margin=dict(t=5, b=5, l=5, r=5), # [ALTERAÇÃO] Margens menores
-                        height=180, # [ALTERAÇÃO] Gráfico menor
+                        showlegend=True, # [ALTERAÇÃO] Adicionando legenda de volta
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(size=9)), # [ALTERAÇÃO] Legenda horizontal
+                        margin=dict(t=5, b=30, l=5, r=5), # [ALTERAÇÃO] Margens ajustadas para legenda
+                        height=210, # [ALTERAÇÃO] Gráfico um pouco maior para legenda
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
@@ -398,9 +399,10 @@ else:
                     )])
                     
                     fig_geral.update_layout(
-                        showlegend=False, # [ALTERAÇÃO] Removi a legenda para economizar espaço
-                        margin=dict(t=5, b=5, l=5, r=5), # [ALTERAÇÃO] Margens menores
-                        height=180, # [ALTERAÇÃO] Gráfico menor
+                        showlegend=True, # [ALTERAÇÃO] Adicionando legenda de volta
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(size=9)), # [ALTERAÇÃO] Legenda horizontal
+                        margin=dict(t=5, b=30, l=5, r=5), # [ALTERAÇÃO] Margens ajustadas para legenda
+                        height=210, # [ALTERAÇÃO] Gráfico um pouco maior para legenda
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
