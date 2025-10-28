@@ -348,65 +348,65 @@ else:
 
         with main_col_right:
             # Gráfico de Pizza por Receita (MENSAL)
-            with st.container(border=True): # [ALTERAÇÃO] Borda ao redor do gráfico
-                st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
-                values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
-                custom_data_mensal = [format_currency(v) for v in values_mensal]
+            
+            st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
+            values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
+            custom_data_mensal = [format_currency(v) for v in values_mensal]
 
-                if sum(values_mensal) > 0:
-                    fig_mensal = go.Figure(data=[go.Pie(
-                        labels=labels, 
-                        values=values_mensal, 
-                        hole=.4, 
-                        customdata=custom_data_mensal,
-                        texttemplate='%{customdata}', 
-                        textfont_size=9, 
-                        hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
-                        marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
-                        sort=False 
-                    )])
-                    fig_mensal.update_layout(
-                        showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
-                        margin=dict(t=5, b=5, l=60, r=5), 
-                        height=180, # [ALTERAÇÃO] Gráfico menor
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white") 
-                    )
-                    st.plotly_chart(fig_mensal, use_container_width=True)
-                else:
-                    st.info("Sem dados mensais.")
+            if sum(values_mensal) > 0:
+                fig_mensal = go.Figure(data=[go.Pie(
+                    labels=labels, 
+                    values=values_mensal, 
+                    hole=.4, 
+                    customdata=custom_data_mensal,
+                    texttemplate='%{customdata}', 
+                    textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
+                    hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
+                    marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
+                    sort=False 
+                )])
+                fig_mensal.update_layout(
+                    showlegend=True, 
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
+                    margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
+                    height=210, 
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white") 
+                )
+                st.plotly_chart(fig_mensal, use_container_width=True)
+            else:
+                st.info("Sem dados mensais.")
 
             # Gráfico de Pizza por Receita (GERAL)
-            with st.container(border=True): # [ALTERAÇÃO] Borda ao redor do gráfico
-                st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
-                values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
-                custom_data_geral = [format_currency(v) for v in values_geral]
+            
+            st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
+            values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
+            custom_data_geral = [format_currency(v) for v in values_geral]
 
-                if sum(values_geral) > 0:
-                    fig_geral = go.Figure(data=[go.Pie(
-                        labels=labels, 
-                        values=values_geral, 
-                        hole=.4, 
-                        customdata=custom_data_geral,
-                        texttemplate='%{customdata}', 
-                        textfont_size=9, 
-                        hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
-                        marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
-                        sort=False 
-                    )])
-                    
-                    fig_geral.update_layout(
-                        showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
-                        margin=dict(t=5, b=5, l=60, r=5), 
-                        height=180, # [ALTERAÇÃO] Gráfico menor
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white") 
-                    )
-                    st.plotly_chart(fig_geral, use_container_width=True)
-                else:
-                    st.info("Sem dados gerais.")
+            if sum(values_geral) > 0:
+                fig_geral = go.Figure(data=[go.Pie(
+                    labels=labels, 
+                    values=values_geral, 
+                    hole=.4, 
+                    customdata=custom_data_geral,
+                    texttemplate='%{customdata}', 
+                    textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
+                    hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
+                    marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
+                    sort=False 
+                )])
+                
+                fig_geral.update_layout(
+                    showlegend=True, 
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
+                    margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
+                    height=210, 
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white") 
+                )
+                st.plotly_chart(fig_geral, use_container_width=True)
+            else:
+                st.info("Sem dados gerais.")
 
