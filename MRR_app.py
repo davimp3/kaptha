@@ -330,7 +330,7 @@ else:
                         showlegend=True,
                         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                         margin=dict(t=20, b=20, l=20, r=20),
-                        height=260, 
+                        height=220, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
@@ -362,7 +362,7 @@ else:
                         showlegend=True,
                         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                         margin=dict(t=20, b=20, l=20, r=20),
-                        height=260, 
+                        height=220, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
