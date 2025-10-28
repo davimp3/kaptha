@@ -9,29 +9,42 @@ st.set_page_config(page_title="Dashboard MMR", layout="wide")
 # --- AJUSTE DE CSS PARA REMOVER PADDING SUPERIOR ---
 st.markdown("""
     <style>
-        /* [ALTERAÇÃO] Remove TODO padding (espaçamento) do container principal */
+        /* [ALTERAÇÃO] Remove TODO padding, margin e border do container principal para o topo */
         [data-testid="stAppViewContainer"] > .main {
-            padding: 0.1rem !important; /* Mínimo para não colar na borda */
+            padding-top: 0px !important; 
+            margin-top: 0px !important;
         }
-        /* Reduz o gap (espaço) entre as colunas */
+        [data-testid="stAppViewContainer"] {
+            padding-top: 0px !important; 
+            margin-top: 0px !important;
+        }
+        header {
+            visibility: hidden;
+            height: 0px !important;
+        }
+        /* [ALTERAÇÃO] Ajusta padding geral da página para quase zero */
+        .stApp {
+            padding: 0.05rem !important; 
+        }
+        /* [ALTERAÇÃO] Reduz o gap (espaço) entre as colunas */
         [data-testid="stHorizontalBlock"] {
-            gap: 0.25rem !important;
+            gap: 0.1rem !important;
         }
-        /* Reduz o padding dos containers de borda */
+        /* [ALTERAÇÃO] Reduz o padding dos containers de borda */
         [data-testid="stVerticalBlockBorderWrapper"] {
-            padding: 0.25rem !important;
+            padding: 0.1rem !important;
         }
         /* Reduz o padding dos containers de métrica */
         [data-testid="stMetric"] {
             padding: 0px !important;
             margin: 0px !important;
         }
-        /* Reduz o tamanho das fontes de título h6 e h5 */
-        h6 { font-size: 0.9rem !important; margin: 0 !important; }
-        h5 { font-size: 1.1rem !important; margin: 0 !important; }
-        /* Reduz o tamanho das legendas */
+        /* [ALTERAÇÃO] Reduz o tamanho das fontes de título h6 e h5 */
+        h6 { font-size: 0.8rem !important; margin: 0 !important; }
+        h5 { font-size: 1.0rem !important; margin: 0 !important; }
+        /* [ALTERAÇÃO] Reduz o tamanho das legendas */
         [data-testid="stCaption"] {
-            font-size: 0.7rem !important;
+            font-size: 0.6rem !important;
             padding: 0 !important;
             margin: 0 !important;
         }
@@ -321,15 +334,15 @@ else:
             st.markdown("---")
             col_c1, col_c2, col_c3 = st.columns(3)
             with col_c1:
-                st.markdown(f"<p style='text-align: center; font-size: 0.8em; opacity: 0.8;'>Churn Orçado</p>"
+                st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Orçado</p>"
                             f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", 
                             unsafe_allow_html=True)
             with col_c2:
-                st.markdown(f"<p style='text-align: center; font-size: 0.8em; opacity: 0.8;'>Churn Realizado</p>"
+                st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Realizado</p>"
                             f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", 
                             unsafe_allow_html=True)
             with col_c3:
-                st.markdown(f"<p style='text-align: center; font-size: 0.8em; opacity: 0.8;'>Churn Diferença</p>"
+                st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Diferença</p>"
                             f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", 
                             unsafe_allow_html=True)
 
@@ -348,16 +361,15 @@ else:
                         hole=.4, 
                         customdata=custom_data_mensal,
                         texttemplate='%{customdata}', 
-                        textfont_size=12,
+                        textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
                         hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                         marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                         sort=False 
                     )])
                     fig_mensal.update_layout(
-                        showlegend=True,
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                        margin=dict(t=20, b=20, l=20, r=20),
-                        height=200, # [ALTERAÇÃO] Gráfico menor
+                        showlegend=False, # [ALTERAÇÃO] Removi a legenda para economizar espaço
+                        margin=dict(t=5, b=5, l=5, r=5), # [ALTERAÇÃO] Margens menores
+                        height=180, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
@@ -379,17 +391,16 @@ else:
                         hole=.4, 
                         customdata=custom_data_geral,
                         texttemplate='%{customdata}', 
-                        textfont_size=12,
+                        textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
                         hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                         marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                         sort=False 
                     )])
                     
                     fig_geral.update_layout(
-                        showlegend=True,
-                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                        margin=dict(t=20, b=20, l=20, r=20),
-                        height=200, # [ALTERAÇÃO] Gráfico menor
+                        showlegend=False, # [ALTERAÇÃO] Removi a legenda para economizar espaço
+                        margin=dict(t=5, b=5, l=5, r=5), # [ALTERAÇÃO] Margens menores
+                        height=180, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
