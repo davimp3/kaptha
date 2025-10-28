@@ -259,36 +259,34 @@ else:
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (CLIENTES) ---
         st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
         
-        col_cards, col_charts = st.columns([0.6, 0.4]) # 60% para cards, 40% para gráficos
+        # [ALTERAÇÃO] Voltando ao layout de 5 colunas
+        col1, col2, col3, col_chart_mensal, col_chart_geral = st.columns([0.22, 0.22, 0.22, 0.17, 0.17])
 
-        with col_cards:
-            c1, c2, c3 = st.columns(3) 
-            with c1:
-                with st.container(border=True):
-                    st.markdown("<h6 style='text-align: center;'>Essencial</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
-                    st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
-                    st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str)
-            
-            with c2:
-                with st.container(border=True):
-                    st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
-                    st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
-                    st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str)
+        with col1:
+            with st.container(border=True):
+                st.markdown("<h6 style='text-align: center;'>Essencial</h6>", unsafe_allow_html=True)
+                st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
+                st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
+                st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str)
+        
+        with col2:
+            with st.container(border=True):
+                st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
+                st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
+                st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
+                st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str)
 
-            with c3:
-                with st.container(border=True):
-                    st.markdown("<h6 style='text-align: center;'>Avançado</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
-                    st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
-                    st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str)
+        with col3:
+            with st.container(border=True):
+                st.markdown("<h6 style='text-align: center;'>Avançado</h6>", unsafe_allow_html=True)
+                st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
+                st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
+                st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str)
         
         labels = ['Essencial', 'Controle', 'Avançado']
         colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
 
-        with col_charts:
-            
+        with col_chart_mensal:
             # Gráfico de Pizza por Receita (MENSAL)
             st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
             values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
@@ -310,16 +308,17 @@ else:
                     showlegend=True,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     margin=dict(t=20, b=20, l=20, r=20),
-                    height=250, # [ALTERAÇÃO] Altura reduzida
+                    height=300, # [ALTERAÇÃO] Altura aumentada
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(color="white") 
                 )
                 st.plotly_chart(fig_mensal, use_container_width=True)
             else:
-                st.info("Sem dados de receita mensal para exibir o gráfico.")
+                st.info("Sem dados mensais.")
 
 
+        with col_chart_geral:
             # Gráfico de Pizza por Receita (GERAL)
             st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
             values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
@@ -342,14 +341,14 @@ else:
                     showlegend=True,
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                     margin=dict(t=20, b=20, l=20, r=20),
-                    height=250, # [ALTERAÇÃO] Altura reduzida
+                    height=300, # [ALTERAÇÃO] Altura aumentada
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     font=dict(color="white") 
                 )
                 st.plotly_chart(fig_geral, use_container_width=True)
             else:
-                st.info("Sem dados de receita geral para exibir o gráfico.")
+                st.info("Sem dados gerais.")
 
         st.markdown("---")
 
