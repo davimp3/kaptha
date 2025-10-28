@@ -360,16 +360,16 @@ else:
                         hole=.4, 
                         customdata=custom_data_mensal,
                         texttemplate='%{customdata}', 
-                        textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
+                        textfont_size=9, 
                         hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                         marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                         sort=False 
                     )])
                     fig_mensal.update_layout(
                         showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
-                        margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
-                        height=210, 
+                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
+                        margin=dict(t=5, b=5, l=60, r=5), 
+                        height=180, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
@@ -391,7 +391,7 @@ else:
                         hole=.4, 
                         customdata=custom_data_geral,
                         texttemplate='%{customdata}', 
-                        textfont_size=9, # [ALTERAÇÃO] Reduzi o tamanho da fonte
+                        textfont_size=9, 
                         hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
                         marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
                         sort=False 
@@ -399,9 +399,9 @@ else:
                     
                     fig_geral.update_layout(
                         showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), # [ALTERAÇÃO] Legenda vertical à esquerda
-                        margin=dict(t=5, b=5, l=60, r=5), # [ALTERAÇÃO] Margem esquerda aumentada para legenda
-                        height=210, 
+                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
+                        margin=dict(t=5, b=5, l=60, r=5), 
+                        height=180, # [ALTERAÇÃO] Gráfico menor
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white") 
