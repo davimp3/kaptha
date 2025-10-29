@@ -156,7 +156,7 @@ view_to_show = 'MRR'
 page_options = ['MRR', 'COMERCIAL'] # Voltando para 2 telas
 
 if auto_rotate_views:
-    count = st_autorefresh(interval=10000, key="view_switcher")
+    count = st_autorefresh(interval=30000, key="view_switcher")
     page_index = count % 2 # Alterna entre 0 e 1
     view_to_show = page_options[page_index]
     
