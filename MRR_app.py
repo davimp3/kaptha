@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_loader.loader import load_dashboard_data
+from data_loader.loader import load_dashboard_data # Importa do loader correto
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh # Para o rodízio
 
@@ -11,19 +11,19 @@ st.markdown("""
     <style>
         /* [ALTERAÇÃO] Remove TODO padding, margin e border do container principal para o topo */
         [data-testid="stAppViewContainer"] > .main {
-            padding-top: 0px !important; 
+            padding-top: 0px !important;
             margin-top: 0px !important;
         }
         [data-testid="stAppViewContainer"] {
-            padding-top: 0px !important; 
+            padding-top: 0px !important;
             margin-top: 0px !important;
         }
-        
+
         /* [REMOVIDO] O bloco 'header' que escondia a sidebar foi removido. */
 
         /* [ALTERAÇÃO] Ajusta padding geral da página para quase zero */
         .stApp {
-            padding: 0.05rem !important; 
+            padding: 0.05rem !important;
         }
         /* [ALTERAÇÃO] Reduz o gap (espaço) entre as colunas */
         [data-testid="stHorizontalBlock"] {
@@ -74,7 +74,7 @@ def format_delta_string(current, previous):
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"{format_currency(current)} (Novo)" if current > 0 else "R$ 0,00 (0.0%)"
-    
+
     delta_val = current - previous
     delta_pct = delta_val / previous
     delta_val_formatted = f"{delta_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -98,7 +98,7 @@ def format_delta_clients(current, previous):
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"+{int(current)} (Novo)" if current > 0 else "0 (0.0%)"
-        
+
     delta_val = current - previous
     delta_pct = delta_val / previous
     delta_val_formatted = f"{int(delta_val):+}" # Ex: +3 ou -1
@@ -106,17 +106,17 @@ def format_delta_clients(current, previous):
 
 
 # --- CARREGA OS DADOS JÁ NUMÉRICOS ---
-df = load_dashboard_data()
+df = load_dashboard_data() # Usa o loader do MRR
 
 # --- PRÉ-CÁLCULOS GERAIS (MOVECIDO PARA CIMA) ---
 acumulado_total_geral = 0.0
-total_orcado_geral = 0.0 
+total_orcado_geral = 0.0
 all_months_list = []
 
 if not df.empty:
     acumulado_total_geral = df['Receita Realizada'].sum()
-    total_orcado_geral = df['Receita Orcada'].sum() 
-    
+    total_orcado_geral = df['Receita Orcada'].sum()
+
     month_order_pt = [
         'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
         'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
@@ -127,24 +127,24 @@ if not df.empty:
         try:
             month_name_str, year_str = month_year_str.lower().split('/')
             year = int(year_str)
-            month_num = month_map.get(month_name_str, -1) 
+            month_num = month_map.get(month_name_str, -1)
             return (year, month_num)
         except Exception:
             return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
-    
+
 
 # --- SIDEBAR DE FILTROS ---
 st.sidebar.header("Filtros do Dashboard")
 
-auto_rotate_views = st.sidebar.checkbox("Rodízio automático de telas (30s)", value=True) 
+auto_rotate_views = st.sidebar.checkbox("Rodízio automático de telas (30s)", value=True)
 
 if not df.empty:
     selected_months = st.sidebar.multiselect(
         "Selecione o(s) Mês(es)",
         options=all_months_list,
-        default=all_months_list[-1:] if all_months_list else [] 
+        default=all_months_list[-1:] if all_months_list else []
     )
 else:
     selected_months = []
@@ -152,15 +152,14 @@ else:
 
 
 # --- LÓGICA DE RODÍZIO DE TELA ---
-view_to_show = 'MRR' 
+view_to_show = 'MRR'
 page_options = ['MRR', 'COMERCIAL'] # Voltando para 2 telas
 
 if auto_rotate_views:
-    # [ALTERAÇÃO] Intervalo alterado de 10000 para 30000 (30 segundos)
-    count = st_autorefresh(interval=30000, key="view_switcher") 
+    count = st_autorefresh(interval=30000, key="view_switcher")
     page_index = count % 2 # Alterna entre 0 e 1
     view_to_show = page_options[page_index]
-    
+
 else:
     # Se não estiver rotacionando, permite seleção manual
     view_to_show = st.sidebar.radio(
@@ -178,7 +177,7 @@ elif df.empty:
 else:
     # --- 1. CÁLCULO DO PERÍODO ATUAL (SOMA) ---
     current_data = df[df['Mes'].isin(selected_months)]
-    
+
     # Receita
     total_orcado = current_data['Receita Orcada'].sum()
     total_realizado = current_data['Receita Realizada'].sum()
@@ -188,7 +187,7 @@ else:
     total_essencial_orcado = current_data['Essencial Orcado'].sum()
     total_essencial_realizado = current_data['Essencial Realizado'].sum()
     total_essencial_diferenca = current_data['Essencial Diferenca'].sum()
-    
+
     # Clientes Controle (Vender)
     total_vender_orcado = current_data['Vender Orcado'].sum()
     total_vender_realizado = current_data['Vender Realizado'].sum()
@@ -219,16 +218,16 @@ else:
     num_selected = len(selected_months)
     earliest_selected_month = min(selected_months, key=lambda m: all_months_list.index(m))
     min_index = all_months_list.index(earliest_selected_month)
-    
+
     prev_start_index = max(0, min_index - num_selected)
     prev_end_index = min_index
     previous_months = all_months_list[prev_start_index:prev_end_index]
-    
+
     prev_orcado, prev_realizado, prev_diferenca = 0.0, 0.0, 0.0
     prev_essencial_orcado, prev_essencial_realizado, prev_essencial_diferenca = 0.0, 0.0, 0.0
     prev_vender_orcado, prev_vender_realizado, prev_vender_diferenca = 0.0, 0.0, 0.0
     prev_avancado_orcado, prev_avancado_realizado, prev_avancado_diferenca = 0.0, 0.0, 0.0
-    
+
     if previous_months:
         previous_data = df[df['Mes'].isin(previous_months)]
         prev_orcado = previous_data['Receita Orcada'].sum()
@@ -248,11 +247,11 @@ else:
     delta_orcado_str = format_delta_string(total_orcado, prev_orcado)
     delta_realizado_str = format_delta_string(total_realizado, prev_realizado)
     delta_diferenca_str = format_delta_string(total_diferenca, prev_diferenca)
-    
+
     delta_essencial_orcado_str = format_delta_clients(total_essencial_orcado, prev_essencial_orcado)
     delta_essencial_realizado_str = format_delta_clients(total_essencial_realizado, prev_essencial_realizado)
     delta_essencial_diferenca_str = format_delta_clients(total_essencial_diferenca, prev_essencial_diferenca)
-    
+
     delta_vender_orcado_str = format_delta_clients(total_vender_orcado, prev_vender_orcado)
     delta_vender_realizado_str = format_delta_clients(total_vender_realizado, prev_vender_realizado)
     delta_vender_diferenca_str = format_delta_clients(total_vender_diferenca, prev_vender_diferenca)
@@ -260,26 +259,26 @@ else:
     delta_avancado_orcado_str = format_delta_clients(total_avancado_orcado, prev_avancado_orcado)
     delta_avancado_realizado_str = format_delta_clients(total_avancado_realizado, prev_avancado_realizado)
     delta_avancado_diferenca_str = format_delta_clients(total_avancado_diferenca, prev_avancado_diferenca)
-    
+
     # Define labels e cores ANTES do loop
     labels = ['Essencial', 'Controle', 'Avançado']
-    colors = ['#41D9FF', '#E8C147', '#69FF4E'] 
+    colors = ['#41D9FF', '#E8C147', '#69FF4E']
 
     # --- EXIBIÇÃO CONDICIONAL ---
-    
+
     if view_to_show == 'MRR':
         # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
         st.caption(f"Período selecionado para o restante do dashboard: {', '.join(sorted(selected_months, key=get_sort_key))}")
 
-        
-        _col_ac_esq, col_ac_centro, _col_ac_dir = st.columns([0.3, 0.4, 0.3]) 
-        with col_ac_centro: 
+
+        _col_ac_esq, col_ac_centro, _col_ac_dir = st.columns([0.3, 0.4, 0.3])
+        with col_ac_centro:
             st.metric(
-                "Receita Total (Geral)", 
+                "Receita Total (Geral)",
                 format_currency(acumulado_total_geral),
                 border=True
             )
-        st.markdown("---") 
+        st.markdown("---")
 
         # --- 5. EXIBIÇÃO - SEÇÃO 2: MRR ---
         st.subheader("MRR")
@@ -292,19 +291,18 @@ else:
             st.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True)
         with col3:
             st.metric(
-                "Diferença", 
-                format_currency(total_diferenca), 
-                delta=delta_diferenca_str, 
-                border=True, 
-                delta_color="inverse" # [CORREÇÃO] Forçando a cor padrão
+                "Diferença",
+                format_currency(total_diferenca),
+                delta=delta_diferenca_str,
+                border=True,
+                delta_color="inverse" # Forçando a cor padrão
             )
         st.markdown("---")
-        
+
     else: # view_to_show == 'COMERCIAL'
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (PLANOS + CHURN + GRÁFICOS) ---
         st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
-        
-        # [ALTERAÇÃO] Layout principal de 2 colunas para planos/churn e gráficos
+
         main_col_left, main_col_right = st.columns([0.6, 0.4])
 
         with main_col_left:
@@ -316,22 +314,22 @@ else:
                     st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
                     st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
                     st.metric(
-                        "Diferença", 
-                        format_clients(total_essencial_diferenca), 
+                        "Diferença",
+                        format_clients(total_essencial_diferenca),
                         delta=delta_essencial_diferenca_str,
-                        delta_color="normal" # [CORREÇÃO] Forçando a cor padrão
+                        delta_color="normal" # Forçando a cor padrão
                     )
-            
+
             with col2:
                 with st.container(border=True):
                     st.markdown("<h6 style='text-align: center;'>Controle</h6>", unsafe_allow_html=True)
                     st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
                     st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
                     st.metric(
-                        "Diferença", 
-                        format_clients(total_vender_diferenca), 
+                        "Diferença",
+                        format_clients(total_vender_diferenca),
                         delta=delta_vender_diferenca_str,
-                        delta_color="normal" # [CORREÇÃO] Forçando a cor padrão
+                        delta_color="normal" # Forçando a cor padrão
                     )
 
             with col3:
@@ -340,10 +338,10 @@ else:
                     st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
                     st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
                     st.metric(
-                        "Diferença", 
-                        format_clients(total_avancado_diferenca), 
+                        "Diferença",
+                        format_clients(total_avancado_diferenca),
                         delta=delta_avancado_diferenca_str,
-                        delta_color="normal" # [CORREÇÃO] Forçando a cor padrão
+                        delta_color="normal" # Forçando a cor padrão
                     )
 
             # --- Seção de Churn (agora na coluna da esquerda, abaixo dos planos) ---
@@ -351,79 +349,79 @@ else:
             col_c1, col_c2, col_c3 = st.columns(3)
             with col_c1:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Orçado</p>"
-                            f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", 
+                            f"<h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>",
                             unsafe_allow_html=True)
             with col_c2:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Realizado</p>"
-                            f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", 
+                            f"<h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>",
                             unsafe_allow_html=True)
             with col_c3:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em; opacity: 0.8;'>Churn Diferença</p>"
-                            f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", 
+                            f"<h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>",
                             unsafe_allow_html=True)
 
 
         with main_col_right:
             # Gráfico de Pizza por Receita (MENSAL)
-            with st.container(border=True): 
-                st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
-                values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
-                custom_data_mensal = [format_currency(v) for v in values_mensal]
+            # [CORREÇÃO] Removido o container com borda
+            st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
+            values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
+            custom_data_mensal = [format_currency(v) for v in values_mensal]
 
-                if sum(values_mensal) > 0:
-                    fig_mensal = go.Figure(data=[go.Pie(
-                        labels=labels, 
-                        values=values_mensal, 
-                        hole=.4, 
-                        customdata=custom_data_mensal,
-                        texttemplate='%{customdata}', 
-                        textfont_size=9, 
-                        hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
-                        marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
-                        sort=False 
-                    )])
-                    fig_mensal.update_layout(
-                        showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
-                        margin=dict(t=5, b=5, l=60, r=5), 
-                        height=210, 
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white") 
-                    )
-                    st.plotly_chart(fig_mensal, use_container_width=True)
-                else:
-                    st.info("Sem dados mensais.")
+            if sum(values_mensal) > 0:
+                fig_mensal = go.Figure(data=[go.Pie(
+                    labels=labels,
+                    values=values_mensal,
+                    hole=.4,
+                    customdata=custom_data_mensal,
+                    texttemplate='%{customdata}',
+                    textfont_size=9,
+                    hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>',
+                    marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
+                    sort=False
+                )])
+                fig_mensal.update_layout(
+                    showlegend=True,
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)),
+                    margin=dict(t=5, b=5, l=60, r=5),
+                    height=180, # [CORREÇÃO] Altura diminuída
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white")
+                )
+                st.plotly_chart(fig_mensal, use_container_width=True)
+            else:
+                st.info("Sem dados mensais.")
 
             # Gráfico de Pizza por Receita (GERAL)
-            with st.container(border=True): 
-                st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
-                values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
-                custom_data_geral = [format_currency(v) for v in values_geral]
+            # [CORREÇÃO] Removido o container com borda
+            st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
+            values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
+            custom_data_geral = [format_currency(v) for v in values_geral]
 
-                if sum(values_geral) > 0:
-                    fig_geral = go.Figure(data=[go.Pie(
-                        labels=labels, 
-                        values=values_geral, 
-                        hole=.4, 
-                        customdata=custom_data_geral,
-                        texttemplate='%{customdata}', 
-                        textfont_size=9, 
-                        hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>', 
-                        marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
-                        sort=False 
-                    )])
-                    
-                    fig_geral.update_layout(
-                        showlegend=True, 
-                        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)), 
-                        margin=dict(t=5, b=5, l=60, r=5), 
-                        height=210, 
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white") 
-                    )
-                    st.plotly_chart(fig_geral, use_container_width=True)
-                else:
-                    st.info("Sem dados gerais.")
+            if sum(values_geral) > 0:
+                fig_geral = go.Figure(data=[go.Pie(
+                    labels=labels,
+                    values=values_geral,
+                    hole=.4,
+                    customdata=custom_data_geral,
+                    texttemplate='%{customdata}',
+                    textfont_size=9,
+                    hovertemplate='<b>%{label}</b><br>Receita: %{customdata} (%{percent:.0f})<extra></extra>',
+                    marker=dict(colors=colors, line=dict(color='#FFFFFF', width=1)),
+                    sort=False
+                )])
+
+                fig_geral.update_layout(
+                    showlegend=True,
+                    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.01, font=dict(size=9)),
+                    margin=dict(t=5, b=5, l=60, r=5),
+                    height=180, # [CORREÇÃO] Altura diminuída
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white")
+                )
+                st.plotly_chart(fig_geral, use_container_width=True)
+            else:
+                st.info("Sem dados gerais.")
 
