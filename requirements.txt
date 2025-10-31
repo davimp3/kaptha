@@ -5,3 +5,5 @@ gspread-dataframe
 plotly
 streamlit-autorefresh
 datetime
+localtime
+numpy

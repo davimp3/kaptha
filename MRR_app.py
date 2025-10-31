@@ -122,6 +122,7 @@ acumulado_total_geral = 0.0
 total_orcado_geral = 0.0
 all_months_list = []
 default_month_selection = [] # [NOVO] Lista para o default do filtro
+past_and_current_months = [] # [NOVO] Lista de meses passados/atuais
 
 if not df.empty:
     
@@ -169,7 +170,11 @@ if not df.empty:
             
     # [ALTERAÇÃO] Filtra o DataFrame para calcular o Acumulado Total
     # Pega todos os meses do início até o índice do mês atual (inclusive)
-    past_and_current_months = all_months_list[:current_month_index + 1]
+    if current_month_index != -1:
+        past_and_current_months = all_months_list[:current_month_index + 1]
+    else:
+        past_and_current_months = all_months_list # Fallback se algo der errado
+        
     df_past_current = df[df['Mes'].isin(past_and_current_months)]
     
     # Calcula o Acumulado Total apenas com meses passados e atuais
@@ -388,7 +393,7 @@ else:
                         "Diferença",
                         format_clients(total_avancado_diferenca),
                         delta=delta_avancado_diferenca_str,
-                        delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
+                        delta_color="inverse" # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             # --- Seção de Churn (agora na coluna da esquerda, abaixo dos planos) ---
