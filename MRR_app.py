@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_loader.loader import load_dashboard_data # Importa do loader correto
+from data_loader.loader import load_dashboard_data # Importa do loader correto (do Canvas)
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh # Para o rodízio
 
@@ -9,6 +9,13 @@ st.set_page_config(page_title="Dashboard MMR", layout="wide")
 # --- AJUSTE DE CSS PARA REMOVER PADDING SUPERIOR ---
 st.markdown("""
     <style>
+        /* [NOVA ALTERAÇÃO] Define a fonte global para Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        html, body, [class*="st-"], [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
+            font-family: 'Inter', sans-serif !important;
+        }
+
         /* [ALTERAÇÃO] Remove TODO padding, margin e border do container principal para o topo */
         [data-testid="stAppViewContainer"] > .main {
             padding-top: 0px !important;
@@ -76,7 +83,7 @@ def format_delta_string(current, previous):
         return f"{format_currency(current)} (Novo)" if current > 0 else "R$ 0,00 (0.0%)"
 
     delta_val = current - previous
-    delta_pct = delta_val / previous
+    delta_pct = (delta_val / previous) if previous != 0 else 0 # Evita divisão por zero
     delta_val_formatted = f"{delta_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     if delta_val > 0: delta_val_formatted = f"+{delta_val_formatted}"
     return f"R$ {delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
@@ -100,13 +107,13 @@ def format_delta_clients(current, previous):
         return f"+{int(current)} (Novo)" if current > 0 else "0 (0.0%)"
 
     delta_val = current - previous
-    delta_pct = delta_val / previous
+    delta_pct = (delta_val / previous) if previous != 0 else 0 # Evita divisão por zero
     delta_val_formatted = f"{int(delta_val):+}" # Ex: +3 ou -1
     return f"{delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 
 # --- CARREGA OS DADOS JÁ NUMÉRICOS ---
-df = load_dashboard_data() # Usa o loader do MRR
+df = load_dashboard_data() # Usa o loader do MRR (do Canvas)
 
 # --- PRÉ-CÁLCULOS GERAIS (MOVECIDO PARA CIMA) ---
 acumulado_total_geral = 0.0
@@ -144,7 +151,7 @@ if not df.empty:
     selected_months = st.sidebar.multiselect(
         "Selecione o(s) Mês(es)",
         options=all_months_list,
-        default=all_months_list[-1:] if all_months_list else []
+        default=all_months_list # Padrão para todos os meses para o gráfico
     )
 else:
     selected_months = []
@@ -153,11 +160,12 @@ else:
 
 # --- LÓGICA DE RODÍZIO DE TELA ---
 view_to_show = 'MRR'
-page_options = ['MRR', 'COMERCIAL'] # Voltando para 2 telas
+# [ALTERAÇÃO] Juntando os gráficos, voltando para 3 telas
+page_options = ['MRR', 'COMERCIAL', 'GRAFICOS_EVOLUCAO'] 
 
 if auto_rotate_views:
     count = st_autorefresh(interval=30000, key="view_switcher")
-    page_index = count % 2 # Alterna entre 0 e 1
+    page_index = count % 3 # [ALTERAÇÃO] Alterna entre 0, 1, e 2
     view_to_show = page_options[page_index]
 
 else:
@@ -176,6 +184,7 @@ elif df.empty:
     st.error("Falha ao carregar os dados.")
 else:
     # --- 1. CÁLCULO DO PERÍODO ATUAL (SOMA) ---
+    # Nota: os cálculos abaixo são baseados nos 'selected_months'
     current_data = df[df['Mes'].isin(selected_months)]
 
     # Receita
@@ -295,11 +304,11 @@ else:
                 format_currency(total_diferenca),
                 delta=delta_diferenca_str,
                 border=True,
-                delta_color="inverse" # Forçando a cor padrão
+                delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
             )
         st.markdown("---")
 
-    else: # view_to_show == 'COMERCIAL'
+    elif view_to_show == 'COMERCIAL':
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (PLANOS + CHURN + GRÁFICOS) ---
         st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
 
@@ -317,7 +326,7 @@ else:
                         "Diferença",
                         format_clients(total_essencial_diferenca),
                         delta=delta_essencial_diferenca_str,
-                        delta_color="normal" # Forçando a cor padrão
+                        delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             with col2:
@@ -329,7 +338,7 @@ else:
                         "Diferença",
                         format_clients(total_vender_diferenca),
                         delta=delta_vender_diferenca_str,
-                        delta_color="normal" # Forçando a cor padrão
+                        delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             with col3:
@@ -341,7 +350,7 @@ else:
                         "Diferença",
                         format_clients(total_avancado_diferenca),
                         delta=delta_avancado_diferenca_str,
-                        delta_color="normal" # Forçando a cor padrão
+                        delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             # --- Seção de Churn (agora na coluna da esquerda, abaixo dos planos) ---
@@ -363,7 +372,6 @@ else:
 
         with main_col_right:
             # Gráfico de Pizza por Receita (MENSAL)
-            # [CORREÇÃO] Removido o container com borda
             st.markdown("<h6 style='text-align: center;'>Distribuição Mensal</h6>", unsafe_allow_html=True)
             values_mensal = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
             custom_data_mensal = [format_currency(v) for v in values_mensal]
@@ -394,7 +402,6 @@ else:
                 st.info("Sem dados mensais.")
 
             # Gráfico de Pizza por Receita (GERAL)
-            # [CORREÇÃO] Removido o container com borda
             st.markdown("<h6 style='text-align: center;'>Distribuição Geral</h6>", unsafe_allow_html=True)
             values_geral = [total_receita_essencial, total_receita_vender, total_receita_avancado]
             custom_data_geral = [format_currency(v) for v in values_geral]
@@ -424,4 +431,103 @@ else:
                 st.plotly_chart(fig_geral, use_container_width=True)
             else:
                 st.info("Sem dados gerais.")
+    
+    else: # view_to_show == 'GRAFICOS_EVOLUCAO'
+        # --- TELA 3: GRÁFICOS DE EVOLUÇÃO ---
+        
+        # Prepara os dados base (ordenados por Mês)
+        chart_df = df.copy()
+        chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
+        chart_df = chart_df.sort_values('Mes')
+        chart_df_final = chart_df.set_index('Mes')
+
+        # Gráfico 1: Receita (Full Width)
+        with st.container(border=True): # [ALTERAÇÃO] Borda adicionada
+            # [ALTERAÇÃO] Título atualizado
+            st.subheader("Meta MRR anual (agosto/25 a agosto/26)") 
+            
+            fig_receita = go.Figure()
+            fig_receita.add_trace(go.Scatter(
+                x=chart_df_final.index, y=chart_df_final['Receita Orcada'],
+                mode='lines', name='Receita Orçada', line=dict(color='#0000FF') # Azul
+            ))
+            fig_receita.add_trace(go.Scatter(
+                x=chart_df_final.index, y=chart_df_final['Receita Realizada'],
+                mode='lines', name='Receita Realizada', line=dict(color='#00FF00') # Verde
+            ))
+            fig_receita.update_layout(
+                height=300, # [ALTERAÇÃO] Altura diminuída
+                xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="white"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_receita, use_container_width=True)
+        
+        st.markdown("---") # Separador
+
+        # Duas colunas para os gráficos de Clientes e Churn
+        col_graf_1, col_graf_2 = st.columns(2)
+
+        with col_graf_1:
+            # Gráfico 2: Clientes
+            with st.container(border=True): # [ALTERAÇÃO] Borda adicionada
+                # [ALTERAÇÃO] Título atualizado
+                st.subheader("Meta Clientes Anual (agosto/25 a agosto/26)") 
+                
+                chart_df_clientes_final = chart_df_final 
+                
+                cols_to_plot_clientes = ['Total de Clientes Orcados', 'Total de Clientes Realizados']
+                if all(col in chart_df_clientes_final.columns for col in cols_to_plot_clientes):
+                    fig_clientes = go.Figure()
+                    fig_clientes.add_trace(go.Scatter(
+                        x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Orcados'],
+                        mode='lines', name='Clientes Orçados', line=dict(color='#0000FF') # Azul
+                    ))
+                    fig_clientes.add_trace(go.Scatter(
+                        x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Realizados'],
+                        mode='lines', name='Clientes Realizados', line=dict(color='#00FF00') # Verde
+                    ))
+                    fig_clientes.update_layout(
+                        height=300, # [ALTERAÇÃO] Altura diminuída
+                        xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color="white"),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig_clientes, use_container_width=True)
+                else:
+                    st.error("Colunas 'Total de Clientes Orcados' ou 'Total de Clientes Realizados' não encontradas.")
+
+        with col_graf_2:
+            # Gráfico 3: Churn Mensal
+            with st.container(border=True): # [ALTERAÇÃO] Borda adicionada
+                st.subheader("Churn") # [ALTERAÇÃO] Título atualizado
+                
+                chart_df_churn_final = chart_df_final 
+                
+                cols_to_plot_churn = ['Churn Orcado Mensal', 'Churn Realizado Mensal']
+                if all(col in chart_df_churn_final.columns for col in cols_to_plot_churn):
+                    fig_churn = go.Figure()
+                    fig_churn.add_trace(go.Scatter(
+                        x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Orcado Mensal'],
+                        mode='lines', name='Churn Orçado Mensal', line=dict(color='#FF0000') # Vermelho
+                    ))
+                    fig_churn.add_trace(go.Scatter(
+                        x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Realizado Mensal'],
+                        mode='lines', name='Churn Realizado Mensal', line=dict(color='#800080') # Roxo
+                    ))
+                    fig_churn.update_layout(
+                        height=300, # [ALTERAÇÃO] Altura diminuída
+                        xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color="white"),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig_churn, use_container_width=True)
+                else:
+                    st.error("Colunas 'Churn Orcado Mensal' ou 'Churn Realizado Mensal' não encontradas.")
 
