@@ -488,19 +488,30 @@ else:
             fig_receita = go.Figure()
             fig_receita.add_trace(go.Scatter(
                 x=chart_df_final.index, y=chart_df_final['Receita Orcada'],
-                mode='lines', name='Receita Orçada', line=dict(color='#0000FF') # Azul
+                mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                name='Receita Orçada', 
+                line=dict(color='#0000FF'), # Azul
+                text=[format_currency(v) for v in chart_df_final['Receita Orcada']],
+                textposition='top center',
+                textfont=dict(color=st.get_option("theme.textColor"), size=10)
             ))
             fig_receita.add_trace(go.Scatter(
                 x=chart_df_final.index, y=chart_df_final['Receita Realizada'],
-                mode='lines', name='Receita Realizada', line=dict(color='#00FF00') # Verde
+                mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                name='Receita Realizada', 
+                line=dict(color='#00FF00'), # Verde
+                text=[format_currency(v) for v in chart_df_final['Receita Realizada']],
+                textposition='top center',
+                textfont=dict(color=st.get_option("theme.textColor"), size=10)
             ))
             fig_receita.update_layout(
-                height=300, # [ALTERAÇÃO] Altura diminuída
+                height=320, # [ALTERAÇÃO] Altura aumentada para texto
                 xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font=dict(color="white"),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                uniformtext_minsize=8, uniformtext_mode='hide' # Oculta texto se sobreposto
             )
             st.plotly_chart(fig_receita, use_container_width=True)
         
@@ -522,19 +533,30 @@ else:
                     fig_clientes = go.Figure()
                     fig_clientes.add_trace(go.Scatter(
                         x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Orcados'],
-                        mode='lines', name='Clientes Orçados', line=dict(color='#0000FF') # Azul
+                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                        name='Clientes Orçados', 
+                        line=dict(color='#0000FF'), # Azul
+                        text=[format_clients(v) for v in chart_df_clientes_final['Total de Clientes Orcados']],
+                        textposition='top center',
+                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
                     ))
                     fig_clientes.add_trace(go.Scatter(
                         x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Realizados'],
-                        mode='lines', name='Clientes Realizados', line=dict(color='#00FF00') # Verde
+                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                        name='Clientes Realizados', 
+                        line=dict(color='#00FF00'), # Verde
+                        text=[format_clients(v) for v in chart_df_clientes_final['Total de Clientes Realizados']],
+                        textposition='top center',
+                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
                     ))
                     fig_clientes.update_layout(
-                        height=300, # [ALTERAÇÃO] Altura diminuída
+                        height=320, # [ALTERAÇÃO] Altura aumentada para texto
                         xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white"),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        uniformtext_minsize=8, uniformtext_mode='hide'
                     )
                     st.plotly_chart(fig_clientes, use_container_width=True)
                 else:
@@ -552,19 +574,30 @@ else:
                     fig_churn = go.Figure()
                     fig_churn.add_trace(go.Scatter(
                         x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Orcado Mensal'],
-                        mode='lines', name='Churn Orçado Mensal', line=dict(color='#FF0000') # Vermelho
+                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                        name='Churn Orçado Mensal', 
+                        line=dict(color='#FF0000'), # Vermelho
+                        text=[format_clients(v) for v in chart_df_churn_final['Churn Orcado Mensal']],
+                        textposition='top center',
+                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
                     ))
                     fig_churn.add_trace(go.Scatter(
                         x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Realizado Mensal'],
-                        mode='lines', name='Churn Realizado Mensal', line=dict(color='#800080') # Roxo
+                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
+                        name='Churn Realizado Mensal', 
+                        line=dict(color='#800080'), # Roxo
+                        text=[format_clients(v) for v in chart_df_churn_final['Churn Realizado Mensal']],
+                        textposition='top center',
+                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
                     ))
                     fig_churn.update_layout(
-                        height=300, # [ALTERAÇÃO] Altura diminuída
+                        height=320, # [ALTERAÇÃO] Altura aumentada para texto
                         xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
                         paper_bgcolor='rgba(0,0,0,0)',
                         plot_bgcolor='rgba(0,0,0,0)',
                         font=dict(color="white"),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        uniformtext_minsize=8, uniformtext_mode='hide'
                     )
                     st.plotly_chart(fig_churn, use_container_width=True)
                 else:
