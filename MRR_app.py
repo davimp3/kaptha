@@ -3,6 +3,8 @@ import pandas as pd
 from data_loader.loader import load_dashboard_data # Importa do loader correto (do Canvas)
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh # Para o rodízio
+from datetime import datetime # [NOVO] Para encontrar o mês atual
+import locale # [NOVO] Para formatar o nome do mês em português
 
 st.set_page_config(page_title="Dashboard MMR", layout="wide")
 
@@ -119,11 +121,11 @@ df = load_dashboard_data() # Usa o loader do MRR (do Canvas)
 acumulado_total_geral = 0.0
 total_orcado_geral = 0.0
 all_months_list = []
+default_month_selection = [] # [NOVO] Lista para o default do filtro
 
 if not df.empty:
-    acumulado_total_geral = df['Receita Realizada'].sum()
-    total_orcado_geral = df['Receita Orcada'].sum()
-
+    
+    # --- Lógica de Ordenação e Datas ---
     month_order_pt = [
         'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
         'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
@@ -140,6 +142,39 @@ if not df.empty:
             return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
+    
+    # --- [NOVO] Lógica para Mês Atual e Acumulado ---
+    try:
+        # Define o local para português do Brasil para pegar o nome do mês
+        locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252') # Windows
+        except:
+            pass # Usa o padrão do sistema se pt_BR falhar
+
+    now = datetime.now()
+    current_month_str = f"{now.strftime('%B').lower()}/{now.year}" # ex: "outubro/2025"
+    
+    # Encontra o índice do mês atual na lista ordenada
+    current_month_index = -1
+    if current_month_str in all_months_list:
+        current_month_index = all_months_list.index(current_month_str)
+        default_month_selection = [current_month_str] # Default é o mês atual
+    else:
+        # Se o mês atual exato não está nos dados, seleciona o último disponível
+        if all_months_list:
+            current_month_index = len(all_months_list) - 1
+            default_month_selection = [all_months_list[-1]]
+            
+    # [ALTERAÇÃO] Filtra o DataFrame para calcular o Acumulado Total
+    # Pega todos os meses do início até o índice do mês atual (inclusive)
+    past_and_current_months = all_months_list[:current_month_index + 1]
+    df_past_current = df[df['Mes'].isin(past_and_current_months)]
+    
+    # Calcula o Acumulado Total apenas com meses passados e atuais
+    acumulado_total_geral = df_past_current['Receita Realizada'].sum()
+    total_orcado_geral = df_past_current['Receita Orcada'].sum()
 
 
 # --- SIDEBAR DE FILTROS ---
@@ -151,7 +186,7 @@ if not df.empty:
     selected_months = st.sidebar.multiselect(
         "Selecione o(s) Mês(es)",
         options=all_months_list,
-        default=all_months_list # Padrão para todos os meses para o gráfico
+        default=default_month_selection # [ALTERAÇÃO] Usa o novo default (mês atual)
     )
 else:
     selected_months = []
@@ -184,7 +219,9 @@ elif df.empty:
     st.error("Falha ao carregar os dados.")
 else:
     # --- 1. CÁLCULO DO PERÍODO ATUAL (SOMA) ---
-    # Nota: os cálculos abaixo são baseados nos 'selected_months'
+    # [ALTERAÇÃO] Esta lógica agora funciona como esperado:
+    # Por padrão, 'selected_months' contém apenas o mês atual.
+    # Se o usuário selecionar mais, 'current_data' irá somar os meses selecionados.
     current_data = df[df['Mes'].isin(selected_months)]
 
     # Receita
@@ -277,7 +314,8 @@ else:
 
     if view_to_show == 'MRR':
         # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
-        st.caption(f"Período selecionado para o restante do dashboard: {', '.join(sorted(selected_months, key=get_sort_key))}")
+        # [ALTERAÇÃO] O valor 'acumulado_total_geral' agora é pré-calculado
+        st.caption(f"Acumulado até: {past_and_current_months[-1] if past_and_current_months else 'N/A'}")
 
 
         _col_ac_esq, col_ac_centro, _col_ac_dir = st.columns([0.3, 0.4, 0.3])
@@ -432,9 +470,10 @@ else:
             else:
                 st.info("Sem dados gerais.")
     
-    else: # view_to_show == 'GRAFICOS_EVOLUCAO'
+    else: # [NOVO] view_to_show == 'GRAFICOS_EVOLUCAO'
         # --- TELA 3: GRÁFICOS DE EVOLUÇÃO ---
         
+        # [ALTERAÇÃO] Os gráficos aqui usam o 'df' completo, ignorando o filtro 'selected_months'
         # Prepara os dados base (ordenados por Mês)
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
