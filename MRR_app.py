@@ -338,16 +338,16 @@ else:
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
+            st.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, delta_color='normal', border=True)
         with col2:
-            st.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True)
+            st.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, delta_color='inverse', border=True)
         with col3:
             st.metric(
                 "Diferença",
                 format_currency(total_diferenca),
                 delta=delta_diferenca_str,
                 border=True,
-                delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
+                delta_color="inverse" # [CORREÇÃO] Garantindo a cor padrão
             )
         st.markdown("---")
 
@@ -393,7 +393,7 @@ else:
                         "Diferença",
                         format_clients(total_avancado_diferenca),
                         delta=delta_avancado_diferenca_str,
-                        delta_color="inverse" # [CORREÇÃO] Garantindo a cor padrão
+                        delta_color="normal " # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             # --- Seção de Churn (agora na coluna da esquerda, abaixo dos planos) ---
@@ -520,91 +520,5 @@ else:
             )
             st.plotly_chart(fig_receita, use_container_width=True)
         
-        st.markdown("---") # Separador
 
-        # Duas colunas para os gráficos de Clientes e Churn
-        col_graf_1, col_graf_2 = st.columns(2)
-
-        with col_graf_1:
-            # Gráfico 2: Clientes
-            with st.container(border=True): # [ALTERAÇÃO] Borda adicionada
-                # [ALTERAÇÃO] Título atualizado
-                st.subheader("Meta Clientes Anual (agosto/25 a agosto/26)") 
-                
-                chart_df_clientes_final = chart_df_final 
-                
-                cols_to_plot_clientes = ['Total de Clientes Orcados', 'Total de Clientes Realizados']
-                if all(col in chart_df_clientes_final.columns for col in cols_to_plot_clientes):
-                    fig_clientes = go.Figure()
-                    fig_clientes.add_trace(go.Scatter(
-                        x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Orcados'],
-                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
-                        name='Clientes Orçados', 
-                        line=dict(color='#0000FF'), # Azul
-                        text=[format_clients(v) for v in chart_df_clientes_final['Total de Clientes Orcados']],
-                        textposition='top center',
-                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
-                    ))
-                    fig_clientes.add_trace(go.Scatter(
-                        x=chart_df_clientes_final.index, y=chart_df_clientes_final['Total de Clientes Realizados'],
-                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
-                        name='Clientes Realizados', 
-                        line=dict(color='#00FF00'), # Verde
-                        text=[format_clients(v) for v in chart_df_clientes_final['Total de Clientes Realizados']],
-                        textposition='top center',
-                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
-                    ))
-                    fig_clientes.update_layout(
-                        height=320, # [ALTERAÇÃO] Altura aumentada para texto
-                        xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white"),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        uniformtext_minsize=8, uniformtext_mode='hide'
-                    )
-                    st.plotly_chart(fig_clientes, use_container_width=True)
-                else:
-                    st.error("Colunas 'Total de Clientes Orcados' ou 'Total de Clientes Realizados' não encontradas.")
-
-        with col_graf_2:
-            # Gráfico 3: Churn Mensal
-            with st.container(border=True): # [ALTERAÇÃO] Borda adicionada
-                st.subheader("Churn") # [ALTERAÇÃO] Título atualizado
-                
-                chart_df_churn_final = chart_df_final 
-                
-                cols_to_plot_churn = ['Churn Orcado Mensal', 'Churn Realizado Mensal']
-                if all(col in chart_df_churn_final.columns for col in cols_to_plot_churn):
-                    fig_churn = go.Figure()
-                    fig_churn.add_trace(go.Scatter(
-                        x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Orcado Mensal'],
-                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
-                        name='Churn Orçado Mensal', 
-                        line=dict(color='#FF0000'), # Vermelho
-                        text=[format_clients(v) for v in chart_df_churn_final['Churn Orcado Mensal']],
-                        textposition='top center',
-                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
-                    ))
-                    fig_churn.add_trace(go.Scatter(
-                        x=chart_df_churn_final.index, y=chart_df_churn_final['Churn Realizado Mensal'],
-                        mode='lines+markers+text', # [ALTERAÇÃO] Adiciona marcadores e texto
-                        name='Churn Realizado Mensal', 
-                        line=dict(color='#800080'), # Roxo
-                        text=[format_clients(v) for v in chart_df_churn_final['Churn Realizado Mensal']],
-                        textposition='top center',
-                        textfont=dict(color=st.get_option("theme.textColor"), size=10)
-                    ))
-                    fig_churn.update_layout(
-                        height=320, # [ALTERAÇÃO] Altura aumentada para texto
-                        xaxis=dict(tickangle=0), # [ALTERAÇÃO] Eixo X horizontal
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color="white"),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        uniformtext_minsize=8, uniformtext_mode='hide'
-                    )
-                    st.plotly_chart(fig_churn, use_container_width=True)
-                else:
-                    st.error("Colunas 'Churn Orcado Mensal' ou 'Churn Realizado Mensal' não encontradas.")
 
