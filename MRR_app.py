@@ -118,11 +118,10 @@ def format_delta_clients(current, previous):
 df = load_dashboard_data() # Usa o loader do MRR (do Canvas)
 
 # --- PRÉ-CÁLCULOS GERAIS (MOVECIDO PARA CIMA) ---
-acumulado_total_geral = 0.0
-total_orcado_geral = 0.0
+# [ALTERAÇÃO] Removidos os cálculos de 'acumulado_total_geral' daqui
 all_months_list = []
-default_month_selection = [] # [NOVO] Lista para o default do filtro
-past_and_current_months = [] # [NOVO] Lista de meses passados/atuais
+default_month_selection = [] # Lista para o default do filtro MRR
+past_and_current_months = [] # Lista de meses passados/atuais
 
 if not df.empty:
     
@@ -168,18 +167,13 @@ if not df.empty:
             current_month_index = len(all_months_list) - 1
             default_month_selection = [all_months_list[-1]]
             
-    # [ALTERAÇÃO] Filtra o DataFrame para calcular o Acumulado Total
-    # Pega todos os meses do início até o índice do mês atual (inclusive)
+    # [ALTERAÇÃO] Define a lista de meses para o Acumulado Total
     if current_month_index != -1:
         past_and_current_months = all_months_list[:current_month_index + 1]
     else:
         past_and_current_months = all_months_list # Fallback se algo der errado
         
-    df_past_current = df[df['Mes'].isin(past_and_current_months)]
-    
-    # Calcula o Acumulado Total apenas com meses passados e atuais
-    acumulado_total_geral = df_past_current['Receita Realizada'].sum()
-    total_orcado_geral = df_past_current['Receita Orcada'].sum()
+    # [REMOVIDO] O cálculo do acumulado foi movido para dentro do ecrã MRR
 
 
 # --- SIDEBAR DE FILTROS ---
@@ -188,13 +182,22 @@ st.sidebar.header("Filtros do Dashboard")
 auto_rotate_views = st.sidebar.checkbox("Rodízio automático de telas (30s)", value=True)
 
 if not df.empty:
-    selected_months = st.sidebar.multiselect(
-        "Selecione o(s) Mês(es)",
+    # [NOVO FILTRO] Filtro para o Acumulado Total (Ecrã MRR)
+    selected_months_acumulado = st.sidebar.multiselect(
+        "Selecionar Meses (Acumulado Total)",
         options=all_months_list,
-        default=default_month_selection # [ALTERAÇÃO] Usa o novo default (mês atual)
+        default=past_and_current_months # Default: todos os meses até ao atual
+    )
+    
+    # [FILTRO EXISTENTE] Renomeado para clareza
+    selected_months_mrr = st.sidebar.multiselect(
+        "Selecionar Meses (MRR & Comercial)",
+        options=all_months_list,
+        default=default_month_selection # Default: apenas o mês atual
     )
 else:
-    selected_months = []
+    selected_months_acumulado = []
+    selected_months_mrr = []
     st.sidebar.error("Não foi possível carregar os dados. Verifique a aba 'DADOS STREAMLIT'.")
 
 
@@ -218,16 +221,15 @@ else:
 
 
 # --- CORPO PRINCIPAL DO DASHBOARD ---
-if not selected_months:
-    st.warning("Por favor, selecione um mês na barra lateral.")
+# [ALTERAÇÃO] Verificação de filtro mudada para 'selected_months_mrr'
+if not selected_months_mrr: 
+    st.warning("Por favor, selecione um mês no filtro (MRR & Comercial).")
 elif df.empty:
     st.error("Falha ao carregar os dados.")
 else:
     # --- 1. CÁLCULO DO PERÍODO ATUAL (SOMA) ---
-    # [ALTERAÇÃO] Esta lógica agora funciona como esperado:
-    # Por padrão, 'selected_months' contém apenas o mês atual.
-    # Se o usuário selecionar mais, 'current_data' irá somar os meses selecionados.
-    current_data = df[df['Mes'].isin(selected_months)]
+    # [ALTERAÇÃO] Usa 'selected_months_mrr' para os cálculos dos ecrãs 1 e 2
+    current_data = df[df['Mes'].isin(selected_months_mrr)]
 
     # Receita
     total_orcado = current_data['Receita Orcada'].sum()
@@ -266,8 +268,9 @@ else:
 
 
     # --- 2. CÁLCULO DO PERÍODO ANTERIOR ---
-    num_selected = len(selected_months)
-    earliest_selected_month = min(selected_months, key=lambda m: all_months_list.index(m))
+    # [ALTERAÇÃO] Usa 'selected_months_mrr' para o cálculo do delta
+    num_selected = len(selected_months_mrr)
+    earliest_selected_month = min(selected_months_mrr, key=lambda m: all_months_list.index(m))
     min_index = all_months_list.index(earliest_selected_month)
 
     prev_start_index = max(0, min_index - num_selected)
@@ -319,8 +322,14 @@ else:
 
     if view_to_show == 'MRR':
         # --- 4. EXIBIÇÃO - SEÇÃO 1: ACUMULADO TOTAL ---
-        # [ALTERAÇÃO] O valor 'acumulado_total_geral' agora é pré-calculado
-        st.caption(f"Acumulado até: {past_and_current_months[-1] if past_and_current_months else 'N/A'}")
+        # [ALTERAÇÃO] Calcula o Acumulado Total com base no seu próprio filtro
+        if selected_months_acumulado:
+            df_acumulado = df[df['Mes'].isin(selected_months_acumulado)]
+            acumulado_total_geral = df_acumulado['Receita Realizada'].sum()
+            st.caption(f"Acumulado (Selecionado): {', '.join(sorted(selected_months_acumulado, key=get_sort_key))}")
+        else:
+            acumulado_total_geral = 0.0
+            st.caption("Nenhum mês selecionado para o Acumulado Total.")
 
 
         _col_ac_esq, col_ac_centro, _col_ac_dir = st.columns([0.3, 0.4, 0.3])
@@ -334,13 +343,13 @@ else:
 
         # --- 5. EXIBIÇÃO - SEÇÃO 2: MRR ---
         st.subheader("MRR")
-        st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
+        st.caption(f"Período selecionado: {', '.join(sorted(selected_months_mrr, key=get_sort_key))}")
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, delta_color='normal', border=True)
+            st.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
         with col2:
-            st.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, delta_color='inverse', border=True)
+            st.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, delta_color="inverse", border=True)
         with col3:
             st.metric(
                 "Diferença",
@@ -353,7 +362,7 @@ else:
 
     elif view_to_show == 'COMERCIAL':
         # --- 6. EXIBIÇÃO - SEÇÃO 3: ANÁLISE COMERCIAL (PLANOS + CHURN + GRÁFICOS) ---
-        st.caption(f"Período selecionado: {', '.join(sorted(selected_months, key=get_sort_key))}")
+        st.caption(f"Período selecionado: {', '.join(sorted(selected_months_mrr, key=get_sort_key))}")
 
         main_col_left, main_col_right = st.columns([0.6, 0.4])
 
@@ -393,7 +402,7 @@ else:
                         "Diferença",
                         format_clients(total_avancado_diferenca),
                         delta=delta_avancado_diferenca_str,
-                        delta_color="normal " # [CORREÇÃO] Garantindo a cor padrão
+                        delta_color="normal" # [CORREÇÃO] Garantindo a cor padrão
                     )
 
             # --- Seção de Churn (agora na coluna da esquerda, abaixo dos planos) ---
@@ -520,5 +529,3 @@ else:
             )
             st.plotly_chart(fig_receita, use_container_width=True)
         
-
-
