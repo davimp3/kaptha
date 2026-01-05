@@ -287,16 +287,18 @@ else:
         c1, c2, c3 = st.columns(3)
         c1.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
         c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="inverse")
+        # [RESTAURADO] Adicionado o delta para Diferença
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
 
     elif view_to_show == 'COMERCIAL':
         # --- TELA 2: COMERCIAL ---
         
-        # [AJUSTE SOLICITADO] CSS Scoped para diminuir a fonte do valor e do DELTA nesta sessão
+        # [AJUSTE SOLICITADO] CSS Scoped: Fonte reduzida e BOLD para o valor da métrica nesta sessão
         st.markdown("""
             <style>
                 [data-testid="stMetricValue"] {
                     font-size: 0.95rem !important;
+                    font-weight: bold !important;
                 }
                 [data-testid="stMetricDelta"] {
                     font-size: 0.75rem !important;
@@ -339,12 +341,12 @@ else:
                     st.metric("Diferença", format_clients(total_planos_diferenca), delta=delta_planos_diferenca_str, delta_color="normal")
 
             st.markdown("---")
-            col_c1, col_c2, col_c3 = st.columns(3)
-            with col_c1:
+            cc1, cc2, cc3 = st.columns(3)
+            with cc1:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Orçado</p><h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", unsafe_allow_html=True)
-            with col_c2:
+            with cc2:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Realizado</p><h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", unsafe_allow_html=True)
-            with col_c3:
+            with cc3:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
 
         with m_r:
