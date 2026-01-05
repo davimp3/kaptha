@@ -292,11 +292,14 @@ else:
     elif view_to_show == 'COMERCIAL':
         # --- TELA 2: COMERCIAL ---
         
-        # [AJUSTE] CSS Scoped para diminuir APENAS a fonte do valor da métrica nesta sessão
+        # [AJUSTE SOLICITADO] CSS Scoped para diminuir a fonte do valor e do DELTA nesta sessão
         st.markdown("""
             <style>
                 [data-testid="stMetricValue"] {
                     font-size: 0.95rem !important;
+                }
+                [data-testid="stMetricDelta"] {
+                    font-size: 0.75rem !important;
                 }
             </style>
             """, unsafe_allow_html=True)
@@ -336,14 +339,12 @@ else:
                     st.metric("Diferença", format_clients(total_planos_diferenca), delta=delta_planos_diferenca_str, delta_color="normal")
 
             st.markdown("---")
-            cc1, cc2, cc3 = st.columns(3)
-            with cc1:
-                # [AJUSTE] Removida a porcentagem do churn
+            col_c1, col_c2, col_c3 = st.columns(3)
+            with col_c1:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Orçado</p><h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", unsafe_allow_html=True)
-            with cc2:
-                # [AJUSTE] Removida a porcentagem do churn
+            with col_c2:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Realizado</p><h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", unsafe_allow_html=True)
-            with cc3:
+            with col_c3:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
 
         with m_r:
@@ -369,7 +370,6 @@ else:
         with st.container(border=True):
             st.subheader("Meta MRR Anual")
             fig = go.Figure()
-            # [AJUSTE] Readicionado mode='lines+markers+text' e texto correspondente
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Orcada'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_currency(v) for v in chart_df['Receita Orcada']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Realizada'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_currency(v) for v in chart_df['Receita Realizada']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
@@ -383,7 +383,6 @@ else:
         with st.container(border=True):
             st.subheader("Meta Clientes Anual")
             fig = go.Figure()
-            # [AJUSTE] Readicionado mode='lines+markers+text' e rótulos
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Orcados'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_clients(v) for v in chart_df['Total de Clientes Orcados']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Realizados'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_clients(v) for v in chart_df['Total de Clientes Realizados']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
@@ -397,7 +396,6 @@ else:
         with st.container(border=True):
             st.subheader("Evolução de Churn (Unidades)")
             fig = go.Figure()
-            # [AJUSTE] Readicionado mode='lines+markers+text' e rótulos
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Orcado Mensal'], mode='lines+markers+text', name='Orçado', line=dict(color='red'), text=[format_clients(v) for v in chart_df['Churn Orcado Mensal']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Realizado Mensal'], mode='lines+markers+text', name='Realizado', line=dict(color='#800080'), text=[format_clients(v) for v in chart_df['Churn Realizado Mensal']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
