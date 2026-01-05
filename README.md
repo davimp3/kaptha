@@ -46,14 +46,14 @@ Space Optimization: Surgical reduction of fonts in the Commercial section (metri
 
 ## Configuration
 
-#### 1. Dependencies
+#### 1. - Dependencies
 
 Ensure the necessary libraries are installed:
 
 pip install streamlit pandas gspread gspread-dataframe plotly streamlit-autorefresh
 
 
-####  2. Secrets
+####  1.1 - Secrets
 
 Google Cloud credentials must be configured in the .streamlit/secrets.toml file or in the Streamlit Cloud dashboard, following this structure:
 
