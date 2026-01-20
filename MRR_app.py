@@ -286,8 +286,7 @@ else:
         st.subheader("MRR")
         c1, c2, c3 = st.columns(3)
         c1.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
-        c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="inverse")
-        # [RESTAURADO] Adicionado o delta para Diferença
+        c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="normal")
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
 
     elif view_to_show == 'COMERCIAL':
