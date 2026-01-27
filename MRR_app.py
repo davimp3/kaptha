@@ -136,46 +136,50 @@ def format_percent(value):
 # --- CARREGA OS DADOS ---
 try:
     df = load_dashboard_data()
-        # Adicione isso logo após carregar o df:
-    if df.empty:
-        st.sidebar.error("Debug: O DF está vazio.")
+    if df is None or df.empty:
+        # Se entrar aqui, a conexão funcionou, mas a aba está vazia ou o e-mail não tem acesso
+        st.sidebar.error("⚠️ Planilha vazia ou sem acesso. Verifique o compartilhamento com o e-mail das Secrets.")
     else:
-        st.sidebar.success(f"Debug: Carregou {len(df)} linhas.")
-        st.sidebar.write("Colunas:", df.columns.tolist())
+        st.sidebar.success(f"✅ {len(df)} linhas carregadas.")
 except Exception as e:
-    st.sidebar.error(f"Erro na ligação com a folha de cálculo: {e}")
+    # EXIBE O ERRO REAL: Se for credenciais erradas, vai aparecer aqui o motivo exato
+    st.sidebar.error(f"❌ Erro de Conexão: {type(e).__name__}")
+    st.sidebar.info(f"Detalhe técnico: {str(e)}")
 
 # --- PRÉ-CÁLCULOS GERAIS ---
 if not df.empty:
-    month_order_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    month_map = {name: i for i, name in enumerate(month_order_pt)}
+    # Dicionário manual para evitar problemas de Locale em servidores Linux (Produção)
+    month_map = {
+        'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6,
+        'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12
+    }
 
     def get_sort_key(month_year_str):
         try:
-            month_name_str, year_str = month_year_str.lower().split('/')
-            return (int(year_str), month_map.get(month_name_str, -1))
-        except Exception:
+            m, y = month_year_str.lower().split('/')
+            # Tenta converter nome (janeiro) ou número (01)
+            m_val = month_map.get(m, int(m) if m.isdigit() else 0)
+            return (int(y), m_val)
+        except:
             return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
     
-    try:
-        locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
-    except:
-        pass 
-
     now = datetime.now()
-    current_month_str = f"{now.strftime('%B').lower()}/{now.year}" 
     
-    current_month_index = -1
+    # AJUSTE IMPORTANTE: Pelos seus prints, o formato é "01/2026"
+    # Se na planilha for "janeiro/2026", mude para: current_month_str = f"{lista_meses_nomes[now.month-1]}/{now.year}"
+    current_month_str = now.strftime('%m/%Y') 
+    
+    # Lógica de seleção padrão
     if current_month_str in all_months_list:
         current_month_index = all_months_list.index(current_month_str)
         default_month_selection = [current_month_str]
         past_and_current_months = all_months_list[:current_month_index + 1]
     else:
-        if all_months_list:
-            default_month_selection = [all_months_list[-1]]
-            past_and_current_months = all_months_list
+        # Fallback caso o mês atual ainda não exista nos dados
+        default_month_selection = [all_months_list[-1]] if all_months_list else []
+        past_and_current_months = all_months_list
 
 # --- SIDEBAR E RODÍZIO ---
 st.sidebar.header("Controlos")
