@@ -9,6 +9,16 @@ import locale # Para formatar o nome do mês em português
 # Configuração da página
 st.set_page_config(page_title="Dashboard MMR", layout="wide")
 
+# [CORREÇÃO CRUCIAL] Inicializamos as variáveis globais no topo para evitar NameError em qualquer cenário
+if 'selected_months_mrr' not in locals():
+    selected_months_mrr = []
+if 'selected_months_acumulado' not in locals():
+    selected_months_acumulado = []
+
+# Definição global de cores e labels para os gráficos de pizza (evita NameError na tela comercial)
+labels = ['Essencial', 'Controle', 'Avançado']
+colors = ['#41D9FF', '#E8C147', '#69FF4E']
+
 # --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ESPECÍFICAS ---
 st.markdown("""
     <style>
@@ -168,6 +178,8 @@ auto_rotate_views = st.sidebar.checkbox("Rodízio automático (30s)", value=True
 if not df.empty:
     selected_months_acumulado = st.sidebar.multiselect("Meses (Acumulado)", options=all_months_list, default=past_and_current_months)
     selected_months_mrr = st.sidebar.multiselect("Meses (MRR & Comercial)", options=all_months_list, default=default_month_selection)
+else:
+    st.sidebar.error("Não foi possível carregar os dados das planilhas.")
 
 # Mantendo as 5 telas solicitadas
 page_options = ['MRR', 'COMERCIAL', 'GRAFICO_RECEITA', 'META_CLIENTES', 'GRAFICO_CHURN'] 
@@ -180,10 +192,10 @@ else:
     view_to_show = st.sidebar.radio("Navegação", page_options, label_visibility="collapsed")
 
 # --- LÓGICA DE EXIBIÇÃO ---
-if not selected_months_mrr: 
-    st.warning("Selecione um mês no filtro.")
-elif df.empty:
-    st.error("Erro ao carregar dados.")
+if df.empty:
+    st.error("Erro crítico: O DataFrame está vazio. Verifique a conexão com o Google Sheets.")
+elif not selected_months_mrr: 
+    st.warning("Por favor, selecione ao menos um mês no filtro lateral para visualizar os dados.")
 else:
     current_data = df[df['Mes'].isin(selected_months_mrr)]
 
@@ -264,15 +276,6 @@ else:
     delta_planos_realizado_str = format_delta_clients(total_planos_realizado, prev_planos_realizado)
     delta_planos_diferenca_str = format_delta_clients(total_planos_diferenca, prev_planos_diferenca)
 
-    # Taxa de Churn
-    base_cli_total = current_data['Total de Clientes Realizados'].sum()
-    rate_orc = (total_churn_orcado / base_cli_total) if base_cli_total > 0 else 0
-    rate_real = (total_churn_realizado / base_cli_total) if base_cli_total > 0 else 0
-
-    # Apoio Visual
-    labels = ['Essencial', 'Controle', 'Avançado']
-    colors = ['#41D9FF', '#E8C147', '#69FF4E']
-
     if view_to_show == 'MRR':
         # --- TELA 1: MRR ---
         df_ac = df[df['Mes'].isin(selected_months_acumulado)]
@@ -291,8 +294,6 @@ else:
 
     elif view_to_show == 'COMERCIAL':
         # --- TELA 2: COMERCIAL ---
-        
-        # [AJUSTE SOLICITADO] CSS Scoped: Fonte reduzida e BOLD para o valor da métrica nesta sessão
         st.markdown("""
             <style>
                 [data-testid="stMetricValue"] {
@@ -305,7 +306,7 @@ else:
             </style>
             """, unsafe_allow_html=True)
             
-        st.caption(f"Período: {', '.join(selected_months_mrr)}")
+        st.caption(f"Período selecionado: {', '.join(selected_months_mrr)}")
         m_l, m_r = st.columns([0.65, 0.35])
         
         with m_l:
@@ -346,7 +347,7 @@ else:
             with cc2:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Realizado</p><h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", unsafe_allow_html=True)
             with cc3:
-                    st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
 
         with m_r:
             st.markdown("<h6>Distribuição Mensal</h6>", unsafe_allow_html=True)
@@ -364,7 +365,6 @@ else:
                 st.plotly_chart(fig_g, use_container_width=True)
 
     elif view_to_show == 'GRAFICO_RECEITA':
-        # --- TELA 3: RECEITA ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
@@ -377,7 +377,6 @@ else:
             st.plotly_chart(fig, use_container_width=True)
 
     elif view_to_show == 'META_CLIENTES':
-        # --- TELA 4: CLIENTES ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
@@ -390,7 +389,6 @@ else:
             st.plotly_chart(fig, use_container_width=True)
 
     elif view_to_show == 'GRAFICO_CHURN':
-        # --- TELA 5: CHURN VALORES ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
