@@ -136,6 +136,12 @@ def format_percent(value):
 # --- CARREGA OS DADOS ---
 try:
     df = load_dashboard_data()
+        # Adicione isso logo após carregar o df:
+    if df.empty:
+        st.sidebar.error("Debug: O DF está vazio.")
+    else:
+        st.sidebar.success(f"Debug: Carregou {len(df)} linhas.")
+        st.sidebar.write("Colunas:", df.columns.tolist())
 except Exception as e:
     st.sidebar.error(f"Erro na ligação com a folha de cálculo: {e}")
 
