@@ -136,11 +136,6 @@ def format_percent(value):
 # --- CARREGA OS DADOS ---
 try:
     df = load_dashboard_data()
-    if df is None or df.empty:
-        # Se entrar aqui, a conexão funcionou, mas a aba está vazia ou o e-mail não tem acesso
-        st.sidebar.error("⚠️ Planilha vazia ou sem acesso. Verifique o compartilhamento com o e-mail das Secrets.")
-    else:
-        st.sidebar.success(f"✅ {len(df)} linhas carregadas.")
 except Exception as e:
     # EXIBE O ERRO REAL: Se for credenciais erradas, vai aparecer aqui o motivo exato
     st.sidebar.error(f"❌ Erro de Conexão: {type(e).__name__}")
@@ -298,7 +293,7 @@ else:
         st.subheader("MRR")
         c1, c2, c3 = st.columns(3)
         c1.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
-        c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="normal")
+        c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="inverse")
         # Diferença com Delta restaurado
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
 
