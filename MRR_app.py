@@ -346,7 +346,7 @@ else:
             with cc2:
                 st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Realizado</p><h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", unsafe_allow_html=True)
             with cc3:
-                st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
 
         with m_r:
             st.markdown("<h6>Distribuição Mensal</h6>", unsafe_allow_html=True)
