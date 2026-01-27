@@ -9,17 +9,18 @@ import locale # Para formatar o nome do mês em português
 # Configuração da página
 st.set_page_config(page_title="Dashboard MMR", layout="wide")
 
-# [CORREÇÃO CRUCIAL] Inicializamos as variáveis globais no topo para evitar NameError em qualquer cenário
-if 'selected_months_mrr' not in locals():
-    selected_months_mrr = []
-if 'selected_months_acumulado' not in locals():
-    selected_months_acumulado = []
+# --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS ---
+# Garante que as variáveis existam mesmo se a conexão falhar
+selected_months_mrr = []
+selected_months_acumulado = []
+all_months_list = []
+df = pd.DataFrame()
 
-# Definição global de cores e labels para os gráficos de pizza (evita NameError na tela comercial)
+# Definição global de cores e labels para os gráficos
 labels = ['Essencial', 'Controle', 'Avançado']
 colors = ['#41D9FF', '#E8C147', '#69FF4E']
 
-# --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ESPECÍFICAS ---
+# --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ---
 st.markdown("""
     <style>
         /* Define a fonte global para Inter */
@@ -29,7 +30,6 @@ st.markdown("""
             font-family: 'Inter', sans-serif !important;
         }
 
-        /* Remove padding superior do container principal */
         [data-testid="stAppViewContainer"] > .main {
             padding-top: 0px !important;
             margin-top: 0px !important;
@@ -39,20 +39,17 @@ st.markdown("""
             margin-top: 0px !important;
         }
 
-        /* Ajusta padding geral da página */
         .stApp {
             padding: 0.05rem !important;
         }
-        /* Reduz o espaço entre as colunas */
         [data-testid="stHorizontalBlock"] {
             gap: 0.1rem !important;
         }
-        /* Reduz o padding dos containers de borda */
         [data-testid="stVerticalBlockBorderWrapper"] {
             padding: 0.1rem !important;
         }
 
-        /* Fonte dos títulos (h6) - Mantida no tamanho original solicitado */
+        /* Fonte dos títulos (h6) */
         h6 { 
             font-size: 0.85rem !important; 
             margin: 0 !important; 
@@ -60,16 +57,14 @@ st.markdown("""
             text-align: center;
         }
         
-        /* h5 usado para labels de Churn no rodapé */
+        /* h5 usado para labels de Churn */
         h5 { font-size: 0.85rem !important; margin: 0 !important; }
         
-        /* Reduz o tamanho das legendas */
         [data-testid="stCaption"] {
             font-size: 0.6rem !important;
             padding: 0 !important;
             margin: 0 !important;
         }
-        /* Reduz o espaço dos separadores */
         hr {
             margin-top: 0.25rem !important;
             margin-bottom: 0.25rem !important;
@@ -80,7 +75,6 @@ st.markdown("""
 # --- FUNÇÕES DE FORMATAÇÃO ---
 
 def format_currency(value):
-    """Formata um valor numérico como moeda BRL."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
@@ -90,7 +84,6 @@ def format_currency(value):
         return "R$ 0,00"
 
 def format_delta_string(current, previous):
-    """Cria a string de delta para o st.metric (R$ e %)."""
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"{format_currency(current)} (Novo)" if current > 0 else "R$ 0,00 (0.0%)"
@@ -101,19 +94,15 @@ def format_delta_string(current, previous):
     return f"R$ {delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 def format_clients(value):
-    """Formata um valor numérico como clientes."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
             return "0 clientes"
-        if int(numeric_value) == 1 or int(numeric_value) == -1:
-             return f"{int(numeric_value)} cliente"
         return f"{int(numeric_value)} clientes"
     except (ValueError, TypeError):
         return "0 clientes"
 
 def format_delta_clients(current, previous):
-    """Cria a string de delta para métricas de clientes."""
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"+{int(current)} (Novo)" if current > 0 else "0 (0.0%)"
@@ -123,7 +112,6 @@ def format_delta_clients(current, previous):
     return f"{delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 def format_percent(value):
-    """Formata um valor decimal como percentagem."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
@@ -133,13 +121,12 @@ def format_percent(value):
         return "0,0%"
 
 # --- CARREGA OS DADOS ---
-df = load_dashboard_data()
+try:
+    df = load_dashboard_data()
+except Exception as e:
+    st.sidebar.error(f"Erro na ligação: {e}")
 
 # --- PRÉ-CÁLCULOS GERAIS ---
-all_months_list = []
-default_month_selection = [] 
-past_and_current_months = [] 
-
 if not df.empty:
     month_order_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
     month_map = {name: i for i, name in enumerate(month_order_pt)}
@@ -179,9 +166,9 @@ if not df.empty:
     selected_months_acumulado = st.sidebar.multiselect("Meses (Acumulado)", options=all_months_list, default=past_and_current_months)
     selected_months_mrr = st.sidebar.multiselect("Meses (MRR & Comercial)", options=all_months_list, default=default_month_selection)
 else:
-    st.sidebar.error("Não foi possível carregar os dados das planilhas.")
+    st.sidebar.warning("A aguardar ligação com o Google Sheets...")
 
-# Mantendo as 5 telas solicitadas
+# Telas
 page_options = ['MRR', 'COMERCIAL', 'GRAFICO_RECEITA', 'META_CLIENTES', 'GRAFICO_CHURN'] 
 
 if auto_rotate_views:
@@ -193,13 +180,13 @@ else:
 
 # --- LÓGICA DE EXIBIÇÃO ---
 if df.empty:
-    st.error("Erro crítico: O DataFrame está vazio. Verifique a conexão com o Google Sheets.")
+    st.error("Erro crítico: O DataFrame está vazio. Verifique se o email da conta de serviço foi partilhado com a folha de cálculo.")
 elif not selected_months_mrr: 
-    st.warning("Por favor, selecione ao menos um mês no filtro lateral para visualizar os dados.")
+    st.warning("Por favor, selecione ao menos um mês no filtro lateral.")
 else:
     current_data = df[df['Mes'].isin(selected_months_mrr)]
 
-    # Cálculo dos valores atuais para métricas
+    # Cálculo dos valores atuais
     total_orcado = current_data['Receita Orcada'].sum()
     total_realizado = current_data['Receita Realizada'].sum()
     total_diferenca = current_data['Receita Diferenca'].sum()
@@ -218,18 +205,18 @@ else:
     total_planos_realizado = total_essencial_realizado + total_vender_realizado + total_avancado_realizado
     total_planos_diferenca = total_essencial_diferenca + total_vender_diferenca + total_avancado_diferenca
 
-    total_receita_essencial = current_data['Receita Essencial'].sum()
-    total_receita_vender = current_data['Receita Vender'].sum()
-    total_receita_avancado = current_data['Receita Avancado'].sum()
     total_receita_essencial_mensal = current_data['Receita Essencial Mensal'].sum() if 'Receita Essencial Mensal' in current_data else 0.0
     total_receita_vender_mensal = current_data['Receita Vender Mensal'].sum() if 'Receita Vender Mensal' in current_data else 0.0
     total_receita_avancado_mensal = current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0.0
+    total_receita_essencial = current_data['Receita Essencial'].sum()
+    total_receita_vender = current_data['Receita Vender'].sum()
+    total_receita_avancado = current_data['Receita Avancado'].sum()
 
     total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
     total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
     total_churn_diferenca = current_data['Churn Diferenca'].sum() if 'Churn Diferenca' in current_data else 0.0
 
-    # Cálculo do Período Anterior
+    # Período Anterior
     num_sel = len(selected_months_mrr)
     earliest = min(selected_months_mrr, key=lambda m: all_months_list.index(m))
     idx = all_months_list.index(earliest)
@@ -277,11 +264,9 @@ else:
     delta_planos_diferenca_str = format_delta_clients(total_planos_diferenca, prev_planos_diferenca)
 
     if view_to_show == 'MRR':
-        # --- TELA 1: MRR ---
         df_ac = df[df['Mes'].isin(selected_months_acumulado)]
         acum_total = df_ac['Receita Realizada'].sum()
         st.caption(f"Acumulado: {', '.join(sorted(selected_months_acumulado, key=get_sort_key))}")
-        
         _, col_ac, _ = st.columns([0.3, 0.4, 0.3])
         with col_ac:
             st.metric("Receita Total (Geral)", format_currency(acum_total), border=True)
@@ -293,7 +278,7 @@ else:
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
 
     elif view_to_show == 'COMERCIAL':
-        # --- TELA 2: COMERCIAL ---
+        # [AJUSTE VISUAL] CSS Scoped: Fonte reduzida e BOLD para o valor da métrica nesta sessão
         st.markdown("""
             <style>
                 [data-testid="stMetricValue"] {
