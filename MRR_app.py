@@ -7,20 +7,20 @@ from datetime import datetime # Para encontrar o mês atual
 import locale # Para formatar o nome do mês em português
 
 # Configuração da página
-st.set_page_config(page_title="Dashboard MMR", layout="wide")
+st.set_page_config(page_title="Dashboard MRR", layout="wide")
 
 # --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS ---
-# Garante que as variáveis existam mesmo se a conexão falhar
+# Garante que as variáveis existam mesmo se a ligação à folha de cálculo falhar, evitando NameError
 selected_months_mrr = []
 selected_months_acumulado = []
 all_months_list = []
 df = pd.DataFrame()
 
-# Definição global de cores e labels para os gráficos
+# Definição global de cores e labels para os gráficos de pizza
 labels = ['Essencial', 'Controle', 'Avançado']
 colors = ['#41D9FF', '#E8C147', '#69FF4E']
 
-# --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ---
+# --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ESPECÍFICAS ---
 st.markdown("""
     <style>
         /* Define a fonte global para Inter */
@@ -30,6 +30,7 @@ st.markdown("""
             font-family: 'Inter', sans-serif !important;
         }
 
+        /* Remove o padding superior do container principal */
         [data-testid="stAppViewContainer"] > .main {
             padding-top: 0px !important;
             margin-top: 0px !important;
@@ -39,17 +40,20 @@ st.markdown("""
             margin-top: 0px !important;
         }
 
+        /* Ajusta o padding geral da página */
         .stApp {
             padding: 0.05rem !important;
         }
+        /* Reduz o gap entre as colunas */
         [data-testid="stHorizontalBlock"] {
             gap: 0.1rem !important;
         }
+        /* Reduz o padding dos containers de borda */
         [data-testid="stVerticalBlockBorderWrapper"] {
             padding: 0.1rem !important;
         }
 
-        /* Fonte dos títulos (h6) */
+        /* Fonte dos títulos (h6) - Mantida conforme solicitado */
         h6 { 
             font-size: 0.85rem !important; 
             margin: 0 !important; 
@@ -57,14 +61,16 @@ st.markdown("""
             text-align: center;
         }
         
-        /* h5 usado para labels de Churn */
+        /* h5 usado para rótulos de Churn no rodapé */
         h5 { font-size: 0.85rem !important; margin: 0 !important; }
         
+        /* Reduz o tamanho das legendas */
         [data-testid="stCaption"] {
             font-size: 0.6rem !important;
             padding: 0 !important;
             margin: 0 !important;
         }
+        /* Reduz o espaço dos separadores */
         hr {
             margin-top: 0.25rem !important;
             margin-bottom: 0.25rem !important;
@@ -75,6 +81,7 @@ st.markdown("""
 # --- FUNÇÕES DE FORMATAÇÃO ---
 
 def format_currency(value):
+    """Formata um valor numérico como moeda BRL."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
@@ -84,6 +91,7 @@ def format_currency(value):
         return "R$ 0,00"
 
 def format_delta_string(current, previous):
+    """Cria a string de delta para o st.metric (R$ e %)."""
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"{format_currency(current)} (Novo)" if current > 0 else "R$ 0,00 (0.0%)"
@@ -94,15 +102,19 @@ def format_delta_string(current, previous):
     return f"R$ {delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 def format_clients(value):
+    """Formata um valor numérico como clientes."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
             return "0 clientes"
+        if int(numeric_value) == 1 or int(numeric_value) == -1:
+             return f"{int(numeric_value)} cliente"
         return f"{int(numeric_value)} clientes"
     except (ValueError, TypeError):
         return "0 clientes"
 
 def format_delta_clients(current, previous):
+    """Cria a string de delta para métricas de clientes."""
     if pd.isna(current): current = 0.0
     if pd.isna(previous) or previous == 0:
         return f"+{int(current)} (Novo)" if current > 0 else "0 (0.0%)"
@@ -112,6 +124,7 @@ def format_delta_clients(current, previous):
     return f"{delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
 
 def format_percent(value):
+    """Formata um valor decimal como percentagem."""
     try:
         numeric_value = float(value)
         if pd.isna(numeric_value):
@@ -124,7 +137,7 @@ def format_percent(value):
 try:
     df = load_dashboard_data()
 except Exception as e:
-    st.sidebar.error(f"Erro na ligação: {e}")
+    st.sidebar.error(f"Erro na ligação com a folha de cálculo: {e}")
 
 # --- PRÉ-CÁLCULOS GERAIS ---
 if not df.empty:
@@ -168,7 +181,7 @@ if not df.empty:
 else:
     st.sidebar.warning("A aguardar ligação com o Google Sheets...")
 
-# Telas
+# Definição das telas do rodízio
 page_options = ['MRR', 'COMERCIAL', 'GRAFICO_RECEITA', 'META_CLIENTES', 'GRAFICO_CHURN'] 
 
 if auto_rotate_views:
@@ -216,7 +229,7 @@ else:
     total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
     total_churn_diferenca = current_data['Churn Diferenca'].sum() if 'Churn Diferenca' in current_data else 0.0
 
-    # Período Anterior
+    # Cálculo do Período Anterior para Deltas
     num_sel = len(selected_months_mrr)
     earliest = min(selected_months_mrr, key=lambda m: all_months_list.index(m))
     idx = all_months_list.index(earliest)
@@ -246,7 +259,7 @@ else:
         prev_planos_realizado = prev_essencial_realizado + prev_vender_realizado + prev_avancado_realizado
         prev_planos_diferenca = prev_essencial_diferenca + prev_vender_diferenca + prev_avancado_diferenca
 
-    # Deltas
+    # Strings de Delta
     delta_orcado_str = format_delta_string(total_orcado, prev_orcado)
     delta_realizado_str = format_delta_string(total_realizado, prev_realizado)
     delta_diferenca_str = format_delta_string(total_diferenca, prev_diferenca)
@@ -264,6 +277,7 @@ else:
     delta_planos_diferenca_str = format_delta_clients(total_planos_diferenca, prev_planos_diferenca)
 
     if view_to_show == 'MRR':
+        # --- TELA 1: MRR ---
         df_ac = df[df['Mes'].isin(selected_months_acumulado)]
         acum_total = df_ac['Receita Realizada'].sum()
         st.caption(f"Acumulado: {', '.join(sorted(selected_months_acumulado, key=get_sort_key))}")
@@ -275,10 +289,12 @@ else:
         c1, c2, c3 = st.columns(3)
         c1.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
         c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="normal")
+        # Diferença com Delta restaurado
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
 
     elif view_to_show == 'COMERCIAL':
-        # [AJUSTE VISUAL] CSS Scoped: Fonte reduzida e BOLD para o valor da métrica nesta sessão
+        # --- TELA 2: COMERCIAL ---
+        # Ajuste Visual: Bold no valor e fonte reduzida no valor e no delta
         st.markdown("""
             <style>
                 [data-testid="stMetricValue"] {
@@ -350,36 +366,42 @@ else:
                 st.plotly_chart(fig_g, use_container_width=True)
 
     elif view_to_show == 'GRAFICO_RECEITA':
+        # --- TELA 3: RECEITA ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
         with st.container(border=True):
             st.subheader("Meta MRR Anual")
             fig = go.Figure()
+            # Legendas (text labels) restauradas em cima dos pontos
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Orcada'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_currency(v) for v in chart_df['Receita Orcada']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Realizada'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_currency(v) for v in chart_df['Receita Realizada']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
             st.plotly_chart(fig, use_container_width=True)
 
     elif view_to_show == 'META_CLIENTES':
+        # --- TELA 4: CLIENTES ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
         with st.container(border=True):
             st.subheader("Meta Clientes Anual")
             fig = go.Figure()
+            # Legendas (text labels) restauradas em cima dos pontos
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Orcados'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_clients(v) for v in chart_df['Total de Clientes Orcados']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Realizados'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_clients(v) for v in chart_df['Total de Clientes Realizados']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
             st.plotly_chart(fig, use_container_width=True)
 
     elif view_to_show == 'GRAFICO_CHURN':
+        # --- TELA 5: CHURN VALORES ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
         with st.container(border=True):
             st.subheader("Evolução de Churn (Unidades)")
             fig = go.Figure()
+            # Legendas (text labels) restauradas em cima dos pontos
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Orcado Mensal'], mode='lines+markers+text', name='Orçado', line=dict(color='red'), text=[format_clients(v) for v in chart_df['Churn Orcado Mensal']], textposition='top center'))
             fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Realizado Mensal'], mode='lines+markers+text', name='Realizado', line=dict(color='#800080'), text=[format_clients(v) for v in chart_df['Churn Realizado Mensal']], textposition='top center'))
             fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
