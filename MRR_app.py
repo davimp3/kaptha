@@ -228,7 +228,7 @@ else:
     total_receita_avancado_mensal = current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0.0
     total_receita_essencial = current_data['Receita Essencial'].sum()
     total_receita_vender = current_data['Receita Vender'].sum()
-    total_receita_avancado = current_data['Receita Avancado'].sum()
+    total_receita_avancado = current_data['Avancado Entrega'].sum() if 'Avancado Entrega' in current_data else current_data['Receita Avancado'].sum()
 
     total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
     total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
@@ -283,12 +283,67 @@ else:
 
     if view_to_show == 'MRR':
         # --- TELA 1: MRR ---
+        st.subheader("Receita x Meta")
         df_ac = df[df['Mes'].isin(selected_months_acumulado)]
         acum_total = df_ac['Receita Realizada'].sum()
         st.caption(f"Acumulado: {', '.join(sorted(selected_months_acumulado, key=get_sort_key))}")
-        _, col_ac, _ = st.columns([0.3, 0.4, 0.3])
-        with col_ac:
-            st.metric("Receita Total (Geral)", format_currency(acum_total), border=True)
+        
+        # --- cálculo da "acumulada total" fixa e do progresso ---
+        META_MRR = 1_400_000.0
+        start_period = '08/2025'
+        end_period   = '08/2026'
+        # lista ordenada de meses entre os limites (inclusive)
+        range_months = [
+            m for m in all_months_list
+            if get_sort_key(start_period) <= get_sort_key(m) <= get_sort_key(end_period)
+        ]
+        df_range = df[df['Mes'].isin(range_months)]
+        total_range = df_range['Receita Realizada'].sum() if not df_range.empty else 0.0
+        pct_meta = total_range / META_MRR if META_MRR else 0.0
+
+        col1, col2, col3 = st.columns([0.33, 0.33, 0.33])
+    
+        
+        with col1:
+            st.metric("Receita Acumulada (Até o mês vigente)", format_currency(acum_total), border=True)
+        
+        with col2:
+            st.metric(f"Receita Acumulada Total\n({start_period} - {end_period})", format_currency(total_range), border=True)
+        
+        with col3:
+            with st.container(border=True):
+                st.markdown("<p style='text-align: center; font-size: 0.85rem; margin: 0;'>Progresso da Meta</p>", unsafe_allow_html=True)
+                st.progress(min(max(pct_meta, 0.0), 1.0))
+                st.caption(f"{pct_meta:.1%} de R$ 1.400.000")
+
+        # --- RESULTADO x FATURAMENTO (logo abaixo, mesma largura e CSS) ---
+        st.markdown("---")
+        st.subheader("Resultado x Faturamento")
+        result_candidates = ['Resultado Acumulado', 'Resultado', 'Resultado AC', 'AC', 'Resultado_Acumulado']
+        result_col = next((c for c in result_candidates if c in df.columns), None)
+
+        if result_col:
+            df_safe = df.copy()
+            df_safe[result_col] = pd.to_numeric(df_safe[result_col], errors='coerce').fillna(0.0)
+
+            resultado_acum = df_safe[df_safe['Mes'].isin(selected_months_acumulado)][result_col].sum()
+            resultado_range = df_safe[df_safe['Mes'].isin(range_months)][result_col].sum() if range_months else 0.0
+
+            pct_result_vs_receita_acum = (resultado_acum / acum_total) if acum_total else 0.0
+
+            r1, r2, r3 = st.columns([0.33, 0.33, 0.33])
+            with r1:
+                st.metric("Resultado Acumulado (Até o mês vigente)", format_currency(resultado_acum), border=True)
+            with r2:
+                with st.container(border=True):
+                    st.metric("% Resultado / Receita (Acumulado até o mês vigente)", format_percent(pct_result_vs_receita_acum))
+            with r3:
+                # [CORREÇÃO] Restaurado o card de Resultado Acumulado Total do Período
+                st.metric(f"Resultado Acumulado ({start_period} - {end_period})", format_currency(resultado_range), border=True)
+        else:
+            st.warning("Coluna de Resultado (AC) não encontrada na base. Verifique o nome da coluna.")
+
+
         st.markdown("---")
         st.subheader("MRR")
         c1, c2, c3 = st.columns(3)
@@ -296,6 +351,20 @@ else:
         c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="inverse")
         # Diferença com Delta restaurado
         c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
+
+    elif view_to_show == 'GRAFICO_RECEITA':
+        # --- TELA 3: RECEITA ---
+        chart_df = df.copy()
+        chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
+        chart_df = chart_df.sort_values('Mes').set_index('Mes')
+        with st.container(border=True):
+            st.subheader("Meta MRR Anual")
+            fig = go.Figure()
+            # Legendas (text labels) restauradas em cima dos pontos
+            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Orcada'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_currency(v) for v in chart_df['Receita Orcada']], textposition='top center'))
+            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Realizada'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_currency(v) for v in chart_df['Receita Realizada']], textposition='top center'))
+            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
+            st.plotly_chart(fig, use_container_width=True)
 
     elif view_to_show == 'COMERCIAL':
         # --- TELA 2: COMERCIAL ---
@@ -357,7 +426,10 @@ else:
 
         with m_r:
             st.markdown("<h6>Distribuição Mensal</h6>", unsafe_allow_html=True)
-            vals_m = [total_receita_essencial_mensal, total_receita_vender_mensal, total_receita_avancado_mensal]
+            vals_m = [current_data['Receita Essencial Mensal'].sum() if 'Receita Essencial Mensal' in current_data else 0,
+                      current_data['Receita Vender Mensal'].sum() if 'Receita Vender Mensal' in current_data else 0,
+                      current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0]
+
             if sum(vals_m) > 0:
                 fig_m = go.Figure(data=[go.Pie(labels=labels, values=vals_m, hole=.4, marker=dict(colors=colors))])
                 fig_m.update_layout(height=180, margin=dict(t=5,b=5,l=5,r=5), showlegend=True, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"))
@@ -370,33 +442,87 @@ else:
                 fig_g.update_layout(height=180, margin=dict(t=5,b=5,l=5,r=5), showlegend=True, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"))
                 st.plotly_chart(fig_g, use_container_width=True)
 
-    elif view_to_show == 'GRAFICO_RECEITA':
-        # --- TELA 3: RECEITA ---
-        chart_df = df.copy()
-        chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
-        chart_df = chart_df.sort_values('Mes').set_index('Mes')
-        with st.container(border=True):
-            st.subheader("Meta MRR Anual")
-            fig = go.Figure()
-            # Legendas (text labels) restauradas em cima dos pontos
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Orcada'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_currency(v) for v in chart_df['Receita Orcada']], textposition='top center'))
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Realizada'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_currency(v) for v in chart_df['Receita Realizada']], textposition='top center'))
-            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
-            st.plotly_chart(fig, use_container_width=True)
-
     elif view_to_show == 'META_CLIENTES':
-        # --- TELA 4: CLIENTES ---
+        # --- TELA 4: META CLIENTES E TICKET MÉDIO ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
+        
+        # Define o range solicitado: 08/2025 até o mês atual (vigente nos dados)
+        start_period_tm = '08/2025'
+        range_months_tm = [
+            m for m in all_months_list
+            if get_sort_key(start_period_tm) <= get_sort_key(m) <= get_sort_key(current_month_str)
+        ]
+        chart_df_tm = chart_df[chart_df.index.isin(range_months_tm)]
+
+        def clean_sheets_numeric(val):
+            if pd.isna(val) or val == "" or str(val).strip() == "":
+                return 0.0
+            if isinstance(val, (int, float)):
+                return float(val)
+            try:
+                s = str(val).replace('R$', '').replace(' ', '').strip()
+                if '.' in s and ',' in s:
+                    s = s.replace('.', '').replace(',', '.')
+                elif ',' in s:
+                    s = s.replace(',', '.')
+                return float(s)
+            except:
+                return 0.0
+
+        # --- KPIs DE LTV (ACIMA DO TICKET MÉDIO) ---
+        df_ltv_range = df[df['Mes'].isin(range_months_tm)].copy()
+        
+        st.subheader("LTV por Plano")
+        ltv_col1, ltv_col2, ltv_col3 = st.columns(3)
+        
+        val_ltv_ess = df_ltv_range['LTV Essencial'].apply(clean_sheets_numeric).sum() if 'LTV Essencial' in df_ltv_range.columns else 0.0
+        val_ltv_ven = df_ltv_range['LTV Vender'].apply(clean_sheets_numeric).sum() if 'LTV Vender' in df_ltv_range.columns else 0.0
+        val_ltv_ava = df_ltv_range['LTV Avancado'].apply(clean_sheets_numeric).sum() if 'LTV Avancado' in df_ltv_range.columns else 0.0
+
+        with ltv_col1:
+            st.metric("LTV Essencial", format_currency(val_ltv_ess), border=True)
+        with ltv_col2:
+            st.metric("LTV Vender", format_currency(val_ltv_ven), border=True)
+        with ltv_col3:
+            st.metric("LTV Avançado", format_currency(val_ltv_ava), border=True)
+
+        st.markdown("---")
+
+        # 1. GRÁFICO DE TICKET MÉDIO (BARRA)
         with st.container(border=True):
-            st.subheader("Meta Clientes Anual")
-            fig = go.Figure()
-            # Legendas (text labels) restauradas em cima dos pontos
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Orcados'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_clients(v) for v in chart_df['Total de Clientes Orcados']], textposition='top center'))
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Realizados'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_clients(v) for v in chart_df['Total de Clientes Realizados']], textposition='top center'))
-            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
-            st.plotly_chart(fig, use_container_width=True)
+            st.subheader("Ticket Médio")
+            if 'TM Geral' in chart_df_tm.columns:
+                fig_tm = go.Figure()
+                fig_tm.add_trace(go.Bar(
+                    x=chart_df_tm.index, 
+                    y=chart_df_tm['TM Geral'], 
+                    name='Ticket Médio',
+                    marker_color='#41D9FF', 
+                    text=[format_currency(v) for v in chart_df_tm['TM Geral']],
+                    textposition='auto'
+                ))
+                fig_tm.update_layout(height=260, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), margin=dict(t=10,b=10))
+                st.plotly_chart(fig_tm, use_container_width=True)
+            else:
+                st.warning("Coluna 'TM Geral' não encontrada na base.")
+            
+        # 2. GRÁFICO DE CLIENTES (LINHA - APENAS REALIZADO)
+        with st.container(border=True):
+            st.subheader("Clientes (Ago/2025 - Ago/2026)")
+            fig_cli = go.Figure()
+            fig_cli.add_trace(go.Scatter(
+                x=chart_df.index, 
+                y=chart_df['Total de Clientes Realizados'], 
+                mode='lines+markers+text', 
+                name='Realizado', 
+                line=dict(color='green', width=3), 
+                text=[format_clients(v) for v in chart_df['Total de Clientes Realizados']], 
+                textposition='top center'
+            ))
+            fig_cli.update_layout(height=260, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide', margin=dict(t=10,b=10))
+            st.plotly_chart(fig_cli, use_container_width=True)
 
     elif view_to_show == 'GRAFICO_CHURN':
         # --- TELA 5: CHURN VALORES ---
