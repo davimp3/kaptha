@@ -81,11 +81,14 @@ if not df.empty:
     def get_sort_key(ms):
         try:
             m, y = ms.lower().split('/')
-            return (int(y), month_map.get(m, 0))
+            # Tenta converter o mês para número, seja ele '01' ou 'janeiro'
+            m_val = int(m) if m.isdigit() else month_map.get(m, 0)
+            return (int(y), m_val)
         except: return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
     now = datetime.now()
+    # current_month_str representa o mês/ano vigente para limites de filtro
     current_month_str = now.strftime('%m/%Y') 
 
     # Sincronização de seleção padrão
@@ -206,7 +209,7 @@ else:
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
         
-        # Range solicitado: Agosto/25 até o mês vigente
+        # Range solicitado: Agosto/25 até o mês vigente (período atual)
         range_cli = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
         df_cli_chart = chart_df[chart_df.index.isin(range_cli)]
         
@@ -226,7 +229,7 @@ else:
             st.plotly_chart(fig_cli, use_container_width=True)
 
     elif view_to_show == 'Leads':
-        # --- TELA 4: LEADS ---
+        # --- TELA 4: LEADS (VOLTANDO AO FORMATO ANTERIOR DE METRICS) ---
         st.markdown("<h6 style='text-align: left; margin-bottom: 10px;'>Performance de Funil (CRM)</h6>", unsafe_allow_html=True)
         d_leads = load_leads_data() 
         
@@ -239,14 +242,14 @@ else:
             ("Vendas", "vendas")
         ]
         
-        # Layout de 5 linhas x 3 colunas com espaçamento reduzido
+        # Estrutura de 5 linhas com 3 colunas cada, conforme solicitado anteriormente
         for label_cat, key_cat in c_keys:
             st.markdown(f"<div class='lead-row-title'>{label_cat}</div>", unsafe_allow_html=True)
             cols = st.columns(3)
             for i, (p_key, p_label) in enumerate(p_keys):
                 val = d_leads.get(p_key, {}).get(key_cat, 0)
                 cols[i].metric(label=p_label, value=int(val), border=True)
-            # Margem negativa para compactar a visualização
+            # Margem negativa para compactar a visualização e melhorar leitura
             st.markdown("<div style='margin-bottom: -15px;'></div>", unsafe_allow_html=True)
         
         st.markdown("<br><hr>", unsafe_allow_html=True)
