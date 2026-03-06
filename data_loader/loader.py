@@ -62,7 +62,9 @@ def load_dashboard_data():
             'Total de Clientes Orcados', 'Total de Clientes Realizados',
             'Churn Orcado Mensal', 'Churn Realizado Mensal',
             'Churn % Orcado', 'Churn % Realizado',
-            'TM Geral' # [ADICIONADO] Para permitir o gráfico de Ticket Médio
+            'TM Geral',
+            'LTV Essencial', 'LTV Vender', 'LTV Avancado',
+            'LTV Essencial Total', 'LTV Vender Total', 'LTV Avancado Total'
         ]
 
         for col in numeric_columns:
