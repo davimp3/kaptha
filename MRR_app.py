@@ -1,12 +1,19 @@
 import streamlit as st
 import pandas as pd
-from data_loader.loader import load_dashboard_data # Carregador GSheets
-from data_loader.loader_leads import load_leads_data # Carregador CSV Leads
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh # Rodízio automático
 from datetime import datetime
+import os
 
-# Configuração da página - Deve ser a primeira instrução
+# --- IMPORTAÇÃO SEGURA DOS LOADERS ---
+try:
+    from data_loader.loader import load_dashboard_data # Carregador GSheets
+    from data_loader.loader_leads import load_leads_data # Carregador CSV Leads
+except ImportError as e:
+    st.error(f"Erro de Estrutura: Não foi possível encontrar os ficheiros na pasta 'data_loader'. Detalhe: {e}")
+    st.stop()
+
+# Configuração da página - Obrigatório ser a primeira instrução Streamlit
 st.set_page_config(page_title="Dashboard MRR", layout="wide")
 
 # --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS ---
@@ -24,6 +31,8 @@ st.markdown("""
         }
         [data-testid="stAppViewContainer"] > .main { padding-top: 0px !important; }
         .stApp { padding: 0.05rem !important; }
+        
+        /* Ajuste fino nos títulos e métricas */
         h6 { font-size: 0.85rem !important; margin: 0 !important; font-weight: 700 !important; text-align: center; }
         [data-testid="stCaption"] { font-size: 0.6rem !important; padding: 0 !important; margin: 0 !important; }
         hr { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
@@ -66,7 +75,7 @@ def clean_sheets_numeric(val):
 try:
     df = load_dashboard_data()
 except Exception as e:
-    st.sidebar.error(f"Erro GSheets: {e}")
+    st.sidebar.error(f"Erro ao ligar ao GSheets: {e}")
 
 # --- PRÉ-CÁLCULOS GERAIS ---
 if not df.empty:
@@ -74,7 +83,8 @@ if not df.empty:
     def get_sort_key(ms):
         try:
             m, y = ms.lower().split('/')
-            return (int(y), month_map.get(m, 0))
+            m_val = month_map.get(m, int(m) if m.isdigit() else 0)
+            return (int(y), m_val)
         except: return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
@@ -105,19 +115,20 @@ if not df.empty:
     selected_months_acumulado = st.sidebar.multiselect("Meses (Acumulado)", options=all_months_list, default=past_and_current_months)
     selected_months_mrr = st.sidebar.multiselect("Meses (Referência)", options=all_months_list, default=default_month_selection)
 else:
-    st.sidebar.warning("A aguardar planilha...")
+    st.sidebar.warning("Aguardando carregamento da planilha...")
 
 # --- LÓGICA DE EXIBIÇÃO ---
 if df.empty:
-    st.error("Dados não encontrados.")
+    st.error("Falha ao carregar dados do Dashboard. Verifique a planilha.")
 else:
     if view_to_show == 'Receita':
+        # --- TELA 1: RECEITA ---
         st.subheader("Receita x Meta")
         df_ac_vigente = df[df['Mes'].isin(selected_months_acumulado)]
         acum_vigente = df_ac_vigente['Receita Realizada'].sum()
         
         META_VALOR = 1400000.0
-        # Range fixo solicitado: Ago/25 a Ago/26
+        # Range fixo: Agosto/2025 a Agosto/2026 conforme solicitado
         start_p, end_p = '08/2025', '08/2026'
         range_total_periodo = [m for m in all_months_list if get_sort_key(start_p) <= get_sort_key(m) <= get_sort_key(end_p)]
         total_periodo = df[df['Mes'].isin(range_total_periodo)]['Receita Realizada'].sum()
@@ -128,6 +139,7 @@ else:
         with c2: st.metric("Receita Acumulada Total (Ago/25 - Ago/26)", format_currency(total_periodo), border=True)
         with c3:
             with st.container(border=True):
+                # Título e layout da meta conforme solicitado
                 st.markdown("<p style='text-align: center; font-size: 0.85rem; margin: 0;'>Progresso da Meta</p>", unsafe_allow_html=True)
                 st.progress(min(progresso, 1.0))
                 st.caption(f"{progresso:.1%} de R$ 1.400.000")
@@ -148,6 +160,7 @@ else:
             with r3: st.metric(f"Resultado Acumulado ({start_p}-{end_p})", format_currency(res_total), border=True)
 
     elif view_to_show == 'LTV':
+        # --- TELA 2: LTV ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
@@ -156,6 +169,7 @@ else:
         
         st.subheader("LTV por Plano (Média Ago/25 - Vigente)")
         l1, l2, l3 = st.columns(3)
+        # Cálculo da média conforme solicitado
         val_ess = df_ltv['LTV Essencial'].apply(clean_sheets_numeric).mean() if 'LTV Essencial' in df_ltv.columns else 0
         val_ven = df_ltv['LTV Vender'].apply(clean_sheets_numeric).mean() if 'LTV Vender' in df_ltv.columns else 0
         val_ava = df_ltv['LTV Avancado'].apply(clean_sheets_numeric).mean() if 'LTV Avancado' in df_ltv.columns else 0
@@ -180,7 +194,7 @@ else:
             st.plotly_chart(fig_cli, use_container_width=True)
 
     elif view_to_show == 'Leads':
-        # Título reduzido para h6 conforme solicitado
+        # --- TELA 3: LEADS ---
         st.markdown("<h6 style='text-align: left; margin-bottom: 10px;'>Performance de Funil (CRM)</h6>", unsafe_allow_html=True)
         d_leads = load_leads_data() 
         
@@ -193,13 +207,14 @@ else:
             ("Vendas", "vendas")
         ]
         
+        # Estrutura de 5 linhas com 3 colunas cada, espaçamento compacto
         for label_cat, key_cat in c_keys:
             st.markdown(f"<div class='lead-row-title'>{label_cat}</div>", unsafe_allow_html=True)
             cols = st.columns(3)
             for i, (p_key, p_label) in enumerate(p_keys):
                 val = d_leads.get(p_key, {}).get(key_cat, 0)
                 cols[i].metric(label=p_label, value=int(val), border=True)
-            # Espaçamento negativo para compactar a página
+            # Margem negativa para reduzir o espaço entre blocos
             st.markdown("<div style='margin-bottom: -15px;'></div>", unsafe_allow_html=True)
         
         st.markdown("<br><hr>", unsafe_allow_html=True)
