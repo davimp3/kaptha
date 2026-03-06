@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh # Rodízio automático
 from datetime import datetime
 
-# Configuração da página - Obrigatório ser a primeira instrução Streamlit
+# Configuração da página - Deve ser a primeira instrução
 st.set_page_config(page_title="Dashboard MRR", layout="wide")
 
 # --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS ---
@@ -105,26 +105,22 @@ if not df.empty:
     selected_months_acumulado = st.sidebar.multiselect("Meses (Acumulado)", options=all_months_list, default=past_and_current_months)
     selected_months_mrr = st.sidebar.multiselect("Meses (Referência)", options=all_months_list, default=default_month_selection)
 else:
-    st.sidebar.warning("Aguardando carregamento da planilha...")
+    st.sidebar.warning("A aguardar planilha...")
 
 # --- LÓGICA DE EXIBIÇÃO ---
 if df.empty:
-    st.error("Falha crítica: O DataFrame está vazio. Verifique a planilha.")
-elif not selected_months_mrr and view_to_show != 'Leads':
-    st.warning("Selecione os meses na barra lateral para visualizar os dados.")
+    st.error("Dados não encontrados.")
 else:
     if view_to_show == 'Receita':
-        # --- TELA 1: RECEITA ---
         st.subheader("Receita x Meta")
         df_ac_vigente = df[df['Mes'].isin(selected_months_acumulado)]
         acum_vigente = df_ac_vigente['Receita Realizada'].sum()
         
         META_VALOR = 1400000.0
-        # Range fixo de Ago/25 a Ago/26
+        # Range fixo solicitado: Ago/25 a Ago/26
         start_p, end_p = '08/2025', '08/2026'
         range_total_periodo = [m for m in all_months_list if get_sort_key(start_p) <= get_sort_key(m) <= get_sort_key(end_p)]
         total_periodo = df[df['Mes'].isin(range_total_periodo)]['Receita Realizada'].sum()
-        
         progresso = total_periodo / META_VALOR if META_VALOR else 0
 
         c1, c2, c3 = st.columns(3)
@@ -132,7 +128,6 @@ else:
         with c2: st.metric("Receita Acumulada Total (Ago/25 - Ago/26)", format_currency(total_periodo), border=True)
         with c3:
             with st.container(border=True):
-                # Título e legenda conforme solicitado
                 st.markdown("<p style='text-align: center; font-size: 0.85rem; margin: 0;'>Progresso da Meta</p>", unsafe_allow_html=True)
                 st.progress(min(progresso, 1.0))
                 st.caption(f"{progresso:.1%} de R$ 1.400.000")
@@ -153,7 +148,6 @@ else:
             with r3: st.metric(f"Resultado Acumulado ({start_p}-{end_p})", format_currency(res_total), border=True)
 
     elif view_to_show == 'LTV':
-        # --- TELA 2: LTV ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
@@ -162,7 +156,6 @@ else:
         
         st.subheader("LTV por Plano (Média Ago/25 - Vigente)")
         l1, l2, l3 = st.columns(3)
-        # Cálculo da média conforme solicitado
         val_ess = df_ltv['LTV Essencial'].apply(clean_sheets_numeric).mean() if 'LTV Essencial' in df_ltv.columns else 0
         val_ven = df_ltv['LTV Vender'].apply(clean_sheets_numeric).mean() if 'LTV Vender' in df_ltv.columns else 0
         val_ava = df_ltv['LTV Avancado'].apply(clean_sheets_numeric).mean() if 'LTV Avancado' in df_ltv.columns else 0
@@ -187,9 +180,9 @@ else:
             st.plotly_chart(fig_cli, use_container_width=True)
 
     elif view_to_show == 'Leads':
-        # --- TELA 3: LEADS ---
+        # Título reduzido para h6 conforme solicitado
         st.markdown("<h6 style='text-align: left; margin-bottom: 10px;'>Performance de Funil (CRM)</h6>", unsafe_allow_html=True)
-        d_leads = load_leads_data() # Lê o CSV local
+        d_leads = load_leads_data() 
         
         p_keys = [("dois_meses_atras", "2 Meses Atrás"), ("mes_passado", "Mês Passado"), ("este_mes", "Este Mês")]
         c_keys = [
@@ -200,14 +193,13 @@ else:
             ("Vendas", "vendas")
         ]
         
-        # Estrutura de 5 linhas com 3 colunas cada, espaçamento reduzido
         for label_cat, key_cat in c_keys:
             st.markdown(f"<div class='lead-row-title'>{label_cat}</div>", unsafe_allow_html=True)
             cols = st.columns(3)
             for i, (p_key, p_label) in enumerate(p_keys):
                 val = d_leads.get(p_key, {}).get(key_cat, 0)
                 cols[i].metric(label=p_label, value=int(val), border=True)
-            # Reduzido o espaçamento para melhorar a leitura
+            # Espaçamento negativo para compactar a página
             st.markdown("<div style='margin-bottom: -15px;'></div>", unsafe_allow_html=True)
         
         st.markdown("<br><hr>", unsafe_allow_html=True)
