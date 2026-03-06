@@ -1,539 +1,214 @@
 import streamlit as st
 import pandas as pd
-from data_loader.loader import load_dashboard_data # Importa do loader correto
+from data_loader.loader import load_dashboard_data # Carregador GSheets
+from data_loader.loader_leads import load_leads_data # Carregador CSV Leads
 import plotly.graph_objects as go
-from streamlit_autorefresh import st_autorefresh # Para o rodízio automático
-from datetime import datetime # Para encontrar o mês atual
-import locale # Para formatar o nome do mês em português
+from streamlit_autorefresh import st_autorefresh # Rodízio automático
+from datetime import datetime
 
-# Configuração da página
+# Configuração da página - Obrigatório ser a primeira instrução Streamlit
 st.set_page_config(page_title="Dashboard MRR", layout="wide")
 
 # --- INICIALIZAÇÃO DE VARIÁVEIS GLOBAIS ---
-# Garante que as variáveis existam mesmo se a ligação à folha de cálculo falhar, evitando NameError
 selected_months_mrr = []
 selected_months_acumulado = []
 all_months_list = []
 df = pd.DataFrame()
 
-# Definição global de cores e labels para os gráficos de pizza
-labels = ['Essencial', 'Controle', 'Avançado']
-colors = ['#41D9FF', '#E8C147', '#69FF4E']
-
-# --- AJUSTE DE CSS PARA REMOVER PADDING E AJUSTAR FONTES ESPECÍFICAS ---
+# --- AJUSTE DE CSS ---
 st.markdown("""
     <style>
-        /* Define a fonte global para Inter */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
         html, body, [class*="st-"], [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
             font-family: 'Inter', sans-serif !important;
         }
-
-        /* Remove o padding superior do container principal */
-        [data-testid="stAppViewContainer"] > .main {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-        }
-        [data-testid="stAppViewContainer"] {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-        }
-
-        /* Ajusta o padding geral da página */
-        .stApp {
-            padding: 0.05rem !important;
-        }
-        /* Reduz o gap entre as colunas */
-        [data-testid="stHorizontalBlock"] {
-            gap: 0.1rem !important;
-        }
-        /* Reduz o padding dos containers de borda */
-        [data-testid="stVerticalBlockBorderWrapper"] {
-            padding: 0.1rem !important;
-        }
-
-        /* Fonte dos títulos (h6) - Mantida conforme solicitado */
-        h6 { 
-            font-size: 0.85rem !important; 
-            margin: 0 !important; 
-            font-weight: 700 !important; 
-            text-align: center;
-        }
+        [data-testid="stAppViewContainer"] > .main { padding-top: 0px !important; }
+        .stApp { padding: 0.05rem !important; }
+        h6 { font-size: 0.85rem !important; margin: 0 !important; font-weight: 700 !important; text-align: center; }
+        [data-testid="stCaption"] { font-size: 0.6rem !important; padding: 0 !important; margin: 0 !important; }
+        hr { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
         
-        /* h5 usado para rótulos de Churn no rodapé */
-        h5 { font-size: 0.85rem !important; margin: 0 !important; }
-        
-        /* Reduz o tamanho das legendas */
-        [data-testid="stCaption"] {
-            font-size: 0.6rem !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        /* Reduz o espaço dos separadores */
-        hr {
-            margin-top: 0.25rem !important;
-            margin-bottom: 0.25rem !important;
+        /* Estilo para os títulos das linhas de leads */
+        .lead-row-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #41D9FF;
+            margin-top: 5px;
+            margin-bottom: 2px;
+            border-left: 3px solid #41D9FF;
+            padding-left: 10px;
         }
     </style>
     """, unsafe_allow_html=True)
 
 # --- FUNÇÕES DE FORMATAÇÃO ---
-
 def format_currency(value):
-    """Formata um valor numérico como moeda BRL."""
     try:
-        numeric_value = float(value)
-        if pd.isna(numeric_value):
-            return "R$ 0,00"
-        return f"R$ {numeric_value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-    except (ValueError, TypeError):
-        return "R$ 0,00"
-
-def format_delta_string(current, previous):
-    """Cria a string de delta para o st.metric (R$ e %)."""
-    if pd.isna(current): current = 0.0
-    if pd.isna(previous) or previous == 0:
-        return f"{format_currency(current)} (Novo)" if current > 0 else "R$ 0,00 (0.0%)"
-    delta_val = current - previous
-    delta_pct = (delta_val / previous) if previous != 0 else 0
-    delta_val_formatted = f"{delta_val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-    if delta_val > 0: delta_val_formatted = f"+{delta_val_formatted}"
-    return f"R$ {delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
-
-def format_clients(value):
-    """Formata um valor numérico como clientes."""
-    try:
-        numeric_value = float(value)
-        if pd.isna(numeric_value):
-            return "0 clientes"
-        if int(numeric_value) == 1 or int(numeric_value) == -1:
-             return f"{int(numeric_value)} cliente"
-        return f"{int(numeric_value)} clientes"
-    except (ValueError, TypeError):
-        return "0 clientes"
-
-def format_delta_clients(current, previous):
-    """Cria a string de delta para métricas de clientes."""
-    if pd.isna(current): current = 0.0
-    if pd.isna(previous) or previous == 0:
-        return f"+{int(current)} (Novo)" if current > 0 else "0 (0.0%)"
-    delta_val = current - previous
-    delta_pct = (delta_val / previous) if previous != 0 else 0
-    delta_val_formatted = f"{int(delta_val):+}"
-    return f"{delta_val_formatted} ({delta_pct:+.1%}) vs Mês Anterior"
+        val = float(value)
+        return f"R$ {val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    except: return "R$ 0,00"
 
 def format_percent(value):
-    """Formata um valor decimal como percentagem."""
-    try:
-        numeric_value = float(value)
-        if pd.isna(numeric_value):
-            return "0,0%"
-        return f"{numeric_value:.1%}".replace('.', ',')
-    except (ValueError, TypeError):
-        return "0,0%"
+    try: return f"{float(value):.1%}".replace('.', ',')
+    except: return "0,0%"
 
-# --- CARREGA OS DADOS ---
+def clean_sheets_numeric(val):
+    if pd.isna(val) or val == "" or str(val).strip() == "": return 0.0
+    if isinstance(val, (int, float)): return float(val)
+    try:
+        s = str(val).replace('R$', '').replace(' ', '').strip()
+        if '.' in s and ',' in s: s = s.replace('.', '').replace(',', '.')
+        elif ',' in s: s = s.replace(',', '.')
+        return float(s)
+    except: return 0.0
+
+# --- CARREGA DADOS GSHEETS ---
 try:
     df = load_dashboard_data()
 except Exception as e:
-    # EXIBE O ERRO REAL: Se for credenciais erradas, vai aparecer aqui o motivo exato
-    st.sidebar.error(f"❌ Erro de Conexão: {type(e).__name__}")
-    st.sidebar.info(f"Detalhe técnico: {str(e)}")
+    st.sidebar.error(f"Erro GSheets: {e}")
 
 # --- PRÉ-CÁLCULOS GERAIS ---
 if not df.empty:
-    # Dicionário manual para evitar problemas de Locale em servidores Linux (Produção)
-    month_map = {
-        'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6,
-        'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12
-    }
-
-    def get_sort_key(month_year_str):
+    month_map = {'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12}
+    def get_sort_key(ms):
         try:
-            m, y = month_year_str.lower().split('/')
-            # Tenta converter nome (janeiro) ou número (01)
-            m_val = month_map.get(m, int(m) if m.isdigit() else 0)
-            return (int(y), m_val)
-        except:
-            return (0, 0)
+            m, y = ms.lower().split('/')
+            return (int(y), month_map.get(m, 0))
+        except: return (0, 0)
 
     all_months_list = sorted(df['Mes'].unique(), key=get_sort_key)
-    
     now = datetime.now()
-    
-    # AJUSTE IMPORTANTE: Pelos seus prints, o formato é "01/2026"
-    # Se na planilha for "janeiro/2026", mude para: current_month_str = f"{lista_meses_nomes[now.month-1]}/{now.year}"
     current_month_str = now.strftime('%m/%Y') 
-    
-    # Lógica de seleção padrão
+
     if current_month_str in all_months_list:
-        current_month_index = all_months_list.index(current_month_str)
+        idx_curr = all_months_list.index(current_month_str)
         default_month_selection = [current_month_str]
-        past_and_current_months = all_months_list[:current_month_index + 1]
+        past_and_current_months = all_months_list[:idx_curr + 1]
     else:
-        # Fallback caso o mês atual ainda não exista nos dados
         default_month_selection = [all_months_list[-1]] if all_months_list else []
         past_and_current_months = all_months_list
 
-# --- SIDEBAR E RODÍZIO ---
+# --- NAVEGAÇÃO ---
 st.sidebar.header("Controlos")
-auto_rotate_views = st.sidebar.checkbox("Rodízio automático (30s)", value=True)
+auto_rotate = st.sidebar.checkbox("Rodízio automático (30s)", value=True)
+page_options = ['Receita', 'LTV', 'Leads'] 
 
+if auto_rotate:
+    count = st_autorefresh(interval=30000, key="view_switcher")
+    view_to_show = page_options[count % len(page_options)]
+else:
+    view_to_show = st.sidebar.radio("Página", page_options)
+
+# --- FILTROS LATERAIS ---
 if not df.empty:
     selected_months_acumulado = st.sidebar.multiselect("Meses (Acumulado)", options=all_months_list, default=past_and_current_months)
-    selected_months_mrr = st.sidebar.multiselect("Meses (MRR & Comercial)", options=all_months_list, default=default_month_selection)
+    selected_months_mrr = st.sidebar.multiselect("Meses (Referência)", options=all_months_list, default=default_month_selection)
 else:
-    st.sidebar.warning("A aguardar ligação com o Google Sheets...")
-
-# Definição das telas do rodízio
-page_options = ['MRR', 'COMERCIAL', 'GRAFICO_RECEITA', 'META_CLIENTES', 'GRAFICO_CHURN'] 
-
-if auto_rotate_views:
-    count = st_autorefresh(interval=30000, key="view_switcher")
-    page_index = count % 5 
-    view_to_show = page_options[page_index]
-else:
-    view_to_show = st.sidebar.radio("Navegação", page_options, label_visibility="collapsed")
+    st.sidebar.warning("Aguardando carregamento da planilha...")
 
 # --- LÓGICA DE EXIBIÇÃO ---
 if df.empty:
-    st.error("Erro crítico: O DataFrame está vazio. Verifique se o email da conta de serviço foi partilhado com a folha de cálculo.")
-elif not selected_months_mrr: 
-    st.warning("Por favor, selecione ao menos um mês no filtro lateral.")
+    st.error("Falha crítica: O DataFrame está vazio. Verifique a planilha.")
+elif not selected_months_mrr and view_to_show != 'Leads':
+    st.warning("Selecione os meses na barra lateral para visualizar os dados.")
 else:
-    current_data = df[df['Mes'].isin(selected_months_mrr)]
-
-    # Cálculo dos valores atuais
-    total_orcado = current_data['Receita Orcada'].sum()
-    total_realizado = current_data['Receita Realizada'].sum()
-    total_diferenca = current_data['Receita Diferenca'].sum()
-
-    total_essencial_orcado = current_data['Essencial Orcado'].sum()
-    total_essencial_realizado = current_data['Essencial Realizado'].sum()
-    total_essencial_diferenca = current_data['Essencial Diferenca'].sum()
-    total_vender_orcado = current_data['Vender Orcado'].sum()
-    total_vender_realizado = current_data['Vender Realizado'].sum()
-    total_vender_diferenca = current_data['Vender Diferenca'].sum()
-    total_avancado_orcado = current_data['Avancado Orcado'].sum()
-    total_avancado_realizado = current_data['Avancado Realizado'].sum()
-    total_avancado_diferenca = current_data['Avancado Diferenca'].sum()
-
-    total_planos_orcado = total_essencial_orcado + total_vender_orcado + total_avancado_orcado
-    total_planos_realizado = total_essencial_realizado + total_vender_realizado + total_avancado_realizado
-    total_planos_diferenca = total_essencial_diferenca + total_vender_diferenca + total_avancado_diferenca
-
-    total_receita_essencial_mensal = current_data['Receita Essencial Mensal'].sum() if 'Receita Essencial Mensal' in current_data else 0.0
-    total_receita_vender_mensal = current_data['Receita Vender Mensal'].sum() if 'Receita Vender Mensal' in current_data else 0.0
-    total_receita_avancado_mensal = current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0.0
-    total_receita_essencial = current_data['Receita Essencial'].sum()
-    total_receita_vender = current_data['Receita Vender'].sum()
-    total_receita_avancado = current_data['Avancado Entrega'].sum() if 'Avancado Entrega' in current_data else current_data['Receita Avancado'].sum()
-
-    total_churn_orcado = current_data['Churn Orcado'].sum() if 'Churn Orcado' in current_data else 0.0
-    total_churn_realizado = current_data['Churn Realizado'].sum() if 'Churn Realizado' in current_data else 0.0
-    total_churn_diferenca = current_data['Churn Diferenca'].sum() if 'Churn Diferenca' in current_data else 0.0
-
-    # Cálculo do Período Anterior para Deltas
-    num_sel = len(selected_months_mrr)
-    earliest = min(selected_months_mrr, key=lambda m: all_months_list.index(m))
-    idx = all_months_list.index(earliest)
-    prev_months = all_months_list[max(0, idx - num_sel):idx]
-    
-    prev_orcado=0.0; prev_realizado=0.0; prev_diferenca=0.0
-    prev_essencial_orcado=0.0; prev_essencial_realizado=0.0; prev_essencial_diferenca=0.0
-    prev_vender_orcado=0.0; prev_vender_realizado=0.0; prev_vender_diferenca=0.0
-    prev_avancado_orcado=0.0; prev_avancado_realizado=0.0; prev_avancado_diferenca=0.0
-    prev_planos_orcado=0.0; prev_planos_realizado=0.0; prev_planos_diferenca=0.0 
-
-    if prev_months:
-        prev_data = df[df['Mes'].isin(prev_months)]
-        prev_orcado = prev_data['Receita Orcada'].sum()
-        prev_realizado = prev_data['Receita Realizada'].sum()
-        prev_diferenca = prev_data['Receita Diferenca'].sum()
-        prev_essencial_orcado = prev_data['Essencial Orcado'].sum()
-        prev_essencial_realizado = prev_data['Essencial Realizado'].sum()
-        prev_essencial_diferenca = prev_data['Essencial Diferenca'].sum()
-        prev_vender_orcado = prev_data['Vender Orcado'].sum()
-        prev_vender_realizado = prev_data['Vender Realizado'].sum()
-        prev_vender_diferenca = prev_data['Vender Diferenca'].sum()
-        prev_avancado_orcado = prev_data['Avancado Orcado'].sum()
-        prev_avancado_realizado = prev_data['Avancado Realizado'].sum()
-        prev_avancado_diferenca = prev_data['Avancado Diferenca'].sum()
-        prev_planos_orcado = prev_essencial_orcado + prev_vender_orcado + prev_avancado_orcado
-        prev_planos_realizado = prev_essencial_realizado + prev_vender_realizado + prev_avancado_realizado
-        prev_planos_diferenca = prev_essencial_diferenca + prev_vender_diferenca + prev_avancado_diferenca
-
-    # Strings de Delta
-    delta_orcado_str = format_delta_string(total_orcado, prev_orcado)
-    delta_realizado_str = format_delta_string(total_realizado, prev_realizado)
-    delta_diferenca_str = format_delta_string(total_diferenca, prev_diferenca)
-    delta_essencial_orcado_str = format_delta_clients(total_essencial_orcado, prev_essencial_orcado)
-    delta_essencial_realizado_str = format_delta_clients(total_essencial_realizado, prev_essencial_realizado)
-    delta_essencial_diferenca_str = format_delta_clients(total_essencial_diferenca, prev_essencial_diferenca)
-    delta_vender_orcado_str = format_delta_clients(total_vender_orcado, prev_vender_orcado)
-    delta_vender_realizado_str = format_delta_clients(total_vender_realizado, prev_vender_realizado)
-    delta_vender_diferenca_str = format_delta_clients(total_vender_diferenca, prev_vender_diferenca)
-    delta_avancado_orcado_str = format_delta_clients(total_avancado_orcado, prev_avancado_orcado)
-    delta_avancado_realizado_str = format_delta_clients(total_avancado_realizado, prev_avancado_realizado)
-    delta_avancado_diferenca_str = format_delta_clients(total_avancado_diferenca, prev_avancado_diferenca)
-    delta_planos_orcado_str = format_delta_clients(total_planos_orcado, prev_planos_orcado)
-    delta_planos_realizado_str = format_delta_clients(total_planos_realizado, prev_planos_realizado)
-    delta_planos_diferenca_str = format_delta_clients(total_planos_diferenca, prev_planos_diferenca)
-
-    if view_to_show == 'MRR':
-        # --- TELA 1: MRR ---
+    if view_to_show == 'Receita':
+        # --- TELA 1: RECEITA ---
         st.subheader("Receita x Meta")
-        df_ac = df[df['Mes'].isin(selected_months_acumulado)]
-        acum_total = df_ac['Receita Realizada'].sum()
-        st.caption(f"Acumulado: {', '.join(sorted(selected_months_acumulado, key=get_sort_key))}")
+        df_ac_vigente = df[df['Mes'].isin(selected_months_acumulado)]
+        acum_vigente = df_ac_vigente['Receita Realizada'].sum()
         
-        # --- cálculo da "acumulada total" fixa e do progresso ---
-        META_MRR = 1_400_000.0
-        start_period = '08/2025'
-        end_period   = '08/2026'
-        # lista ordenada de meses entre os limites (inclusive)
-        range_months = [
-            m for m in all_months_list
-            if get_sort_key(start_period) <= get_sort_key(m) <= get_sort_key(end_period)
-        ]
-        df_range = df[df['Mes'].isin(range_months)]
-        total_range = df_range['Receita Realizada'].sum() if not df_range.empty else 0.0
-        pct_meta = total_range / META_MRR if META_MRR else 0.0
+        META_VALOR = 1400000.0
+        # Range fixo de Ago/25 a Ago/26
+        start_p, end_p = '08/2025', '08/2026'
+        range_total_periodo = [m for m in all_months_list if get_sort_key(start_p) <= get_sort_key(m) <= get_sort_key(end_p)]
+        total_periodo = df[df['Mes'].isin(range_total_periodo)]['Receita Realizada'].sum()
+        
+        progresso = total_periodo / META_VALOR if META_VALOR else 0
 
-        col1, col2, col3 = st.columns([0.33, 0.33, 0.33])
-    
-        
-        with col1:
-            st.metric("Receita Acumulada (Até o mês vigente)", format_currency(acum_total), border=True)
-        
-        with col2:
-            st.metric(f"Receita Acumulada Total\n({start_period} - {end_period})", format_currency(total_range), border=True)
-        
-        with col3:
+        c1, c2, c3 = st.columns(3)
+        with c1: st.metric("Receita Acumulada (Até Vigente)", format_currency(acum_vigente), border=True)
+        with c2: st.metric("Receita Acumulada Total (Ago/25 - Ago/26)", format_currency(total_periodo), border=True)
+        with c3:
             with st.container(border=True):
+                # Título e legenda conforme solicitado
                 st.markdown("<p style='text-align: center; font-size: 0.85rem; margin: 0;'>Progresso da Meta</p>", unsafe_allow_html=True)
-                st.progress(min(max(pct_meta, 0.0), 1.0))
-                st.caption(f"{pct_meta:.1%} de R$ 1.400.000")
+                st.progress(min(progresso, 1.0))
+                st.caption(f"{progresso:.1%} de R$ 1.400.000")
 
-        # --- RESULTADO x FATURAMENTO (logo abaixo, mesma largura e CSS) ---
         st.markdown("---")
         st.subheader("Resultado x Faturamento")
-        result_candidates = ['Resultado Acumulado', 'Resultado', 'Resultado AC', 'AC', 'Resultado_Acumulado']
-        result_col = next((c for c in result_candidates if c in df.columns), None)
-
-        if result_col:
+        res_col = next((c for c in ['Resultado Acumulado', 'Resultado AC', 'AC'] if c in df.columns), None)
+        if res_col:
             df_safe = df.copy()
-            df_safe[result_col] = pd.to_numeric(df_safe[result_col], errors='coerce').fillna(0.0)
+            df_safe[res_col] = df_safe[res_col].apply(clean_sheets_numeric)
+            res_vigente = df_safe[df_safe['Mes'].isin(selected_months_acumulado)][res_col].sum()
+            res_total = df_safe[df_safe['Mes'].isin(range_total_periodo)][res_col].sum()
+            perc_res = res_vigente / acum_vigente if acum_vigente else 0
+            
+            r1, r2, r3 = st.columns(3)
+            with r1: st.metric("Resultado Acumulado (Vigente)", format_currency(res_vigente), border=True)
+            with r2: st.metric(label="Resultado / Receita % (Acumulado)", value=format_percent(perc_res), border=True)
+            with r3: st.metric(f"Resultado Acumulado ({start_p}-{end_p})", format_currency(res_total), border=True)
 
-            resultado_acum = df_safe[df_safe['Mes'].isin(selected_months_acumulado)][result_col].sum()
-            resultado_range = df_safe[df_safe['Mes'].isin(range_months)][result_col].sum() if range_months else 0.0
-
-            pct_result_vs_receita_acum = (resultado_acum / acum_total) if acum_total else 0.0
-
-            r1, r2, r3 = st.columns([0.33, 0.33, 0.33])
-            with r1:
-                st.metric("Resultado Acumulado (Até o mês vigente)", format_currency(resultado_acum), border=True)
-            with r2:
-                with st.container(border=True):
-                    st.metric("% Resultado / Receita (Acumulado até o mês vigente)", format_percent(pct_result_vs_receita_acum))
-            with r3:
-                # [CORREÇÃO] Restaurado o card de Resultado Acumulado Total do Período
-                st.metric(f"Resultado Acumulado ({start_period} - {end_period})", format_currency(resultado_range), border=True)
-        else:
-            st.warning("Coluna de Resultado (AC) não encontrada na base. Verifique o nome da coluna.")
-
-
-        st.markdown("---")
-        st.subheader("MRR")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Orçado", format_currency(total_orcado), delta=delta_orcado_str, border=True)
-        c2.metric("Realizado", format_currency(total_realizado), delta=delta_realizado_str, border=True, delta_color="inverse")
-        # Diferença com Delta restaurado
-        c3.metric("Diferença", format_currency(total_diferenca), delta=delta_diferenca_str, border=True, delta_color="inverse")
-
-    elif view_to_show == 'GRAFICO_RECEITA':
-        # --- TELA 3: RECEITA ---
+    elif view_to_show == 'LTV':
+        # --- TELA 2: LTV ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
-        with st.container(border=True):
-            st.subheader("Meta MRR Anual")
-            fig = go.Figure()
-            # Legendas (text labels) restauradas em cima dos pontos
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Orcada'], mode='lines+markers+text', name='Orçado', line=dict(color='blue'), text=[format_currency(v) for v in chart_df['Receita Orcada']], textposition='top center'))
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Receita Realizada'], mode='lines+markers+text', name='Realizado', line=dict(color='green'), text=[format_currency(v) for v in chart_df['Receita Realizada']], textposition='top center'))
-            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
-            st.plotly_chart(fig, use_container_width=True)
-
-    elif view_to_show == 'COMERCIAL':
-        # --- TELA 2: COMERCIAL ---
-        # Ajuste Visual: Bold no valor e fonte reduzida no valor e no delta
-        st.markdown("""
-            <style>
-                [data-testid="stMetricValue"] {
-                    font-size: 0.95rem !important;
-                    font-weight: bold !important;
-                }
-                [data-testid="stMetricDelta"] {
-                    font-size: 0.75rem !important;
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            
-        st.caption(f"Período selecionado: {', '.join(selected_months_mrr)}")
-        m_l, m_r = st.columns([0.65, 0.35])
+        range_ltv = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
+        df_ltv = df[df['Mes'].isin(range_ltv)].copy()
         
-        with m_l:
-            c1, c2, c3, c4 = st.columns(4)
-            # Cards Essencial
-            with c1:
-                with st.container(border=True):
-                    st.markdown("<h6>Essencial</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_essencial_orcado), delta=delta_essencial_orcado_str)
-                    st.metric("Realizado", format_clients(total_essencial_realizado), delta=delta_essencial_realizado_str)
-                    st.metric("Diferença", format_clients(total_essencial_diferenca), delta=delta_essencial_diferenca_str, delta_color="normal")
-            # Cards Controle
-            with c2:
-                with st.container(border=True):
-                    st.markdown("<h6>Controle</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_vender_orcado), delta=delta_vender_orcado_str)
-                    st.metric("Realizado", format_clients(total_vender_realizado), delta=delta_vender_realizado_str)
-                    st.metric("Diferença", format_clients(total_vender_diferenca), delta=delta_vender_diferenca_str, delta_color="normal")
-            # Cards Avançado
-            with c3:
-                with st.container(border=True):
-                    st.markdown("<h6>Avançado</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_avancado_orcado), delta=delta_avancado_orcado_str)
-                    st.metric("Realizado", format_clients(total_avancado_realizado), delta=delta_avancado_realizado_str)
-                    st.metric("Diferença", format_clients(total_avancado_diferenca), delta=delta_avancado_diferenca_str, delta_color="normal")
-            # Cards Total
-            with c4:
-                with st.container(border=True):
-                    st.markdown("<h6>Total</h6>", unsafe_allow_html=True)
-                    st.metric("Orçado", format_clients(total_planos_orcado), delta=delta_planos_orcado_str)
-                    st.metric("Realizado", format_clients(total_planos_realizado), delta=delta_planos_realizado_str)
-                    st.metric("Diferença", format_clients(total_planos_diferenca), delta=delta_planos_diferenca_str, delta_color="normal")
-
-            st.markdown("---")
-            cc1, cc2, cc3 = st.columns(3)
-            with cc1:
-                st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Orçado</p><h5 style='text-align: center;'>{format_clients(total_churn_orcado)}</h5>", unsafe_allow_html=True)
-            with cc2:
-                st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Churn Realizado</p><h5 style='text-align: center;'>{format_clients(total_churn_realizado)}</h5>", unsafe_allow_html=True)
-            with cc3:
-                st.markdown(f"<p style='text-align: center; font-size: 0.7em;'>Diferença</p><h5 style='text-align: center;'>{format_clients(total_churn_diferenca)}</h5>", unsafe_allow_html=True)
-
-        with m_r:
-            st.markdown("<h6>Distribuição Mensal</h6>", unsafe_allow_html=True)
-            vals_m = [current_data['Receita Essencial Mensal'].sum() if 'Receita Essencial Mensal' in current_data else 0,
-                      current_data['Receita Vender Mensal'].sum() if 'Receita Vender Mensal' in current_data else 0,
-                      current_data['Receita Avancado Mensal'].sum() if 'Receita Avancado Mensal' in current_data else 0]
-
-            if sum(vals_m) > 0:
-                fig_m = go.Figure(data=[go.Pie(labels=labels, values=vals_m, hole=.4, marker=dict(colors=colors))])
-                fig_m.update_layout(height=180, margin=dict(t=5,b=5,l=5,r=5), showlegend=True, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"))
-                st.plotly_chart(fig_m, use_container_width=True)
-            
-            st.markdown("<h6>Distribuição Geral</h6>", unsafe_allow_html=True)
-            vals_g = [total_receita_essencial, total_receita_vender, total_receita_avancado]
-            if sum(vals_g) > 0:
-                fig_g = go.Figure(data=[go.Pie(labels=labels, values=vals_g, hole=.4, marker=dict(colors=colors))])
-                fig_g.update_layout(height=180, margin=dict(t=5,b=5,l=5,r=5), showlegend=True, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"))
-                st.plotly_chart(fig_g, use_container_width=True)
-
-    elif view_to_show == 'META_CLIENTES':
-        # --- TELA 4: META CLIENTES E TICKET MÉDIO ---
-        chart_df = df.copy()
-        chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
-        chart_df = chart_df.sort_values('Mes').set_index('Mes')
+        st.subheader("LTV por Plano (Média Ago/25 - Vigente)")
+        l1, l2, l3 = st.columns(3)
+        # Cálculo da média conforme solicitado
+        val_ess = df_ltv['LTV Essencial'].apply(clean_sheets_numeric).mean() if 'LTV Essencial' in df_ltv.columns else 0
+        val_ven = df_ltv['LTV Vender'].apply(clean_sheets_numeric).mean() if 'LTV Vender' in df_ltv.columns else 0
+        val_ava = df_ltv['LTV Avancado'].apply(clean_sheets_numeric).mean() if 'LTV Avancado' in df_ltv.columns else 0
         
-        # Define o range solicitado: 08/2025 até o mês atual (vigente nos dados)
-        start_period_tm = '08/2025'
-        range_months_tm = [
-            m for m in all_months_list
-            if get_sort_key(start_period_tm) <= get_sort_key(m) <= get_sort_key(current_month_str)
-        ]
-        chart_df_tm = chart_df[chart_df.index.isin(range_months_tm)]
-
-        def clean_sheets_numeric(val):
-            if pd.isna(val) or val == "" or str(val).strip() == "":
-                return 0.0
-            if isinstance(val, (int, float)):
-                return float(val)
-            try:
-                s = str(val).replace('R$', '').replace(' ', '').strip()
-                if '.' in s and ',' in s:
-                    s = s.replace('.', '').replace(',', '.')
-                elif ',' in s:
-                    s = s.replace(',', '.')
-                return float(s)
-            except:
-                return 0.0
-
-        # --- KPIs DE LTV (ACIMA DO TICKET MÉDIO) ---
-        df_ltv_range = df[df['Mes'].isin(range_months_tm)].copy()
-        
-        st.subheader("LTV por Plano")
-        ltv_col1, ltv_col2, ltv_col3 = st.columns(3)
-        
-        val_ltv_ess = df_ltv_range['LTV Essencial'].apply(clean_sheets_numeric).sum() if 'LTV Essencial' in df_ltv_range.columns else 0.0
-        val_ltv_ven = df_ltv_range['LTV Vender'].apply(clean_sheets_numeric).sum() if 'LTV Vender' in df_ltv_range.columns else 0.0
-        val_ltv_ava = df_ltv_range['LTV Avancado'].apply(clean_sheets_numeric).sum() if 'LTV Avancado' in df_ltv_range.columns else 0.0
-
-        with ltv_col1:
-            st.metric("LTV Essencial", format_currency(val_ltv_ess), border=True)
-        with ltv_col2:
-            st.metric("LTV Vender", format_currency(val_ltv_ven), border=True)
-        with ltv_col3:
-            st.metric("LTV Avançado", format_currency(val_ltv_ava), border=True)
+        with l1: st.metric("LTV Essencial", format_currency(val_ess), border=True)
+        with l2: st.metric("LTV Vender", format_currency(val_ven), border=True)
+        with l3: st.metric("LTV Avançado", format_currency(val_ava), border=True)
 
         st.markdown("---")
-
-        # 1. GRÁFICO DE TICKET MÉDIO (BARRA)
         with st.container(border=True):
             st.subheader("Ticket Médio")
-            if 'TM Geral' in chart_df_tm.columns:
-                fig_tm = go.Figure()
-                fig_tm.add_trace(go.Bar(
-                    x=chart_df_tm.index, 
-                    y=chart_df_tm['TM Geral'], 
-                    name='Ticket Médio',
-                    marker_color='#41D9FF', 
-                    text=[format_currency(v) for v in chart_df_tm['TM Geral']],
-                    textposition='auto'
-                ))
-                fig_tm.update_layout(height=260, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), margin=dict(t=10,b=10))
+            if 'TM Geral' in chart_df.columns:
+                df_tm_chart = chart_df[chart_df.index.isin(range_ltv)]
+                fig_tm = go.Figure(go.Bar(x=df_tm_chart.index, y=df_tm_chart['TM Geral'], marker_color='#41D9FF', text=[format_currency(v) for v in df_tm_chart['TM Geral']], textposition='auto'))
+                fig_tm.update_layout(height=220, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), margin=dict(t=10,b=10))
                 st.plotly_chart(fig_tm, use_container_width=True)
-            else:
-                st.warning("Coluna 'TM Geral' não encontrada na base.")
             
-        # 2. GRÁFICO DE CLIENTES (LINHA - APENAS REALIZADO)
         with st.container(border=True):
             st.subheader("Clientes (Ago/2025 - Ago/2026)")
-            fig_cli = go.Figure()
-            fig_cli.add_trace(go.Scatter(
-                x=chart_df.index, 
-                y=chart_df['Total de Clientes Realizados'], 
-                mode='lines+markers+text', 
-                name='Realizado', 
-                line=dict(color='green', width=3), 
-                text=[format_clients(v) for v in chart_df['Total de Clientes Realizados']], 
-                textposition='top center'
-            ))
-            fig_cli.update_layout(height=260, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide', margin=dict(t=10,b=10))
+            fig_cli = go.Figure(go.Scatter(x=chart_df.index, y=chart_df['Total de Clientes Realizados'], mode='lines+markers+text', name='Realizado', line=dict(color='green', width=3), text=chart_df['Total de Clientes Realizados'], textposition='top center'))
+            fig_cli.update_layout(height=220, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), margin=dict(t=10,b=10))
             st.plotly_chart(fig_cli, use_container_width=True)
 
-    elif view_to_show == 'GRAFICO_CHURN':
-        # --- TELA 5: CHURN VALORES ---
-        chart_df = df.copy()
-        chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
-        chart_df = chart_df.sort_values('Mes').set_index('Mes')
-        with st.container(border=True):
-            st.subheader("Evolução de Churn (Unidades)")
-            fig = go.Figure()
-            # Legendas (text labels) restauradas em cima dos pontos
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Orcado Mensal'], mode='lines+markers+text', name='Orçado', line=dict(color='red'), text=[format_clients(v) for v in chart_df['Churn Orcado Mensal']], textposition='top center'))
-            fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Churn Realizado Mensal'], mode='lines+markers+text', name='Realizado', line=dict(color='#800080'), text=[format_clients(v) for v in chart_df['Churn Realizado Mensal']], textposition='top center'))
-            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), uniformtext_minsize=8, uniformtext_mode='hide')
-            st.plotly_chart(fig, use_container_width=True)
+    elif view_to_show == 'Leads':
+        # --- TELA 3: LEADS ---
+        st.markdown("<h6 style='text-align: left; margin-bottom: 10px;'>Performance de Funil (CRM)</h6>", unsafe_allow_html=True)
+        d_leads = load_leads_data() # Lê o CSV local
+        
+        p_keys = [("dois_meses_atras", "2 Meses Atrás"), ("mes_passado", "Mês Passado"), ("este_mes", "Este Mês")]
+        c_keys = [
+            ("Leads Gerados", "gerados"),
+            ("Leads Qualificados", "qualificados"),
+            ("Reuniões de Diagnóstico", "diagnostico"),
+            ("Reuniões de Proposta", "proposta"),
+            ("Vendas", "vendas")
+        ]
+        
+        # Estrutura de 5 linhas com 3 colunas cada, espaçamento reduzido
+        for label_cat, key_cat in c_keys:
+            st.markdown(f"<div class='lead-row-title'>{label_cat}</div>", unsafe_allow_html=True)
+            cols = st.columns(3)
+            for i, (p_key, p_label) in enumerate(p_keys):
+                val = d_leads.get(p_key, {}).get(key_cat, 0)
+                cols[i].metric(label=p_label, value=int(val), border=True)
+            # Reduzido o espaçamento para melhorar a leitura
+            st.markdown("<div style='margin-bottom: -15px;'></div>", unsafe_allow_html=True)
+        
+        st.markdown("<br><hr>", unsafe_allow_html=True)
+        st.caption(f"Dados sincronizados via CSV em: {d_leads.get('ultima_atualizacao', '---')}")
