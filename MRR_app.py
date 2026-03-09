@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots # Importação necessária para eixos duplos
 from streamlit_autorefresh import st_autorefresh # Rodízio automático
 from datetime import datetime
 import os
@@ -14,10 +15,10 @@ except ImportError as e:
     st.error(f"Erro de Estrutura: Não foi possível encontrar os ficheiros na pasta 'data_loader'. Detalhe: {e}")
     st.stop()
 
-# Configuração da página - Deve ser sempre a primeira instrução Streamlit
-st.set_page_config(page_title="Dashboard MRR", layout="wide")
+# Configuração da página - initial_sidebar_state="collapsed" ajuda a manter oculta por padrão
+st.set_page_config(page_title="Dashboard MRR", layout="wide", initial_sidebar_state="collapsed")
 
-# --- AJUSTE DE CSS PARA VISUAL PREMIUM E ALTA DENSIDADE ---
+# --- AJUSTE DE CSS PARA VISUAL PREMIUM E REMOÇÃO TOTAL DA BARRA LATERAL ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -27,10 +28,33 @@ st.markdown("""
             font-family: 'Inter', sans-serif !important;
         }
 
-        /* Redução de Padding do Container Principal */
+        /* [AJUSTE] REMOVER COMPLETAMENTE O CONTROLE DA BARRA LATERAL E SETAS */
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+        
+        /* Esconder a barra lateral em si caso seja forçada */
+        section[data-testid="stSidebar"] {
+            display: none !important;
+        }
+
+        /* Mantemos apenas o footer escondido para um look mais clean */
+        footer {
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+
+        /* Redução de Padding do Container Principal para ocupar a tela toda */
         [data-testid="stAppViewContainer"] > .main {
             padding-top: 0rem !important;
             padding-bottom: 1rem !important;
+        }
+        
+        /* Ajuste para que o conteúdo não tenha margem esquerda da sidebar oculta */
+        [data-testid="stAppViewContainer"] > .main > .block-container {
+            max-width: 100% !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }
 
         /* Estilização dos Blocos de Métrica (Cards) */
@@ -138,23 +162,17 @@ if not df.empty:
         past_and_current_months = all_months_list
 
 # --- NAVEGAÇÃO E RODÍZIO ---
-st.sidebar.header("Controlos de Visualização")
-auto_rotate = st.sidebar.checkbox("Rodízio automático (30s)", value=True)
+# Como a sidebar foi removida via CSS, o rodízio automático é essencial.
+auto_rotate = True # Forçado para True para garantir funcionamento na TV
 page_options = ['Receita', 'LTV', 'Ticket Médio', 'Clientes'] 
 
-if auto_rotate:
-    count = st_autorefresh(interval=30000, key="view_switcher")
-    view_to_show = page_options[count % len(page_options)]
-else:
-    view_to_show = st.sidebar.radio("Navegar para:", page_options)
+# O refresh continua funcionando em background
+count = st_autorefresh(interval=30000, key="view_switcher")
+view_to_show = page_options[count % len(page_options)]
 
-# --- FILTROS ---
-st.sidebar.markdown("---")
-if not df.empty:
-    selected_months_acumulado = st.sidebar.multiselect("Filtrar Acumulado (Cards)", options=all_months_list, default=past_and_current_months)
-    selected_months_mrr = st.sidebar.multiselect("Filtrar Referência", options=all_months_list, default=default_month_selection)
-else:
-    st.sidebar.warning("Carregando base de dados...")
+# Filtros padrões automáticos (já que a sidebar está oculta)
+selected_months_acumulado = past_and_current_months
+selected_months_mrr = default_month_selection
 
 # --- LÓGICA DE EXIBIÇÃO POR PÁGINA ---
 if df.empty:
@@ -173,7 +191,7 @@ else:
         progresso = total_periodo / META_VALOR if META_VALOR else 0
 
         c1, c2, c3 = st.columns(3)
-        with c1: st.metric("Receita Acumulada (Filtro)", format_currency(acum_vigente))
+        with c1: st.metric("Receita Acumulada", format_currency(acum_vigente))
         with c2: st.metric("Receita Total (Ago/25 - Ago/26)", format_currency(total_periodo))
         with c3:
             with st.container():
@@ -192,9 +210,9 @@ else:
             perc_res = res_vigente / acum_vigente if acum_vigente else 0
             
             r1, r2, r3 = st.columns(3)
-            with r1: st.metric("Resultado (Filtro)", format_currency(res_vigente))
+            with r1: st.metric("Resultado Acumulado", format_currency(res_vigente))
             with r2: st.metric(label="Resultado / Receita %", value=format_percent(perc_res))
-            with r3: st.metric(f"Resultado Acumulado ({start_p}-{end_p})", format_currency(res_total))
+            with r3: st.metric(f"Resultado Total ({start_p}-{end_p})", format_currency(res_total))
 
     elif view_to_show == 'LTV':
         # --- TELA 2: LTV ---
@@ -214,7 +232,7 @@ else:
         with l3: st.metric("LTV Avançado", format_currency(v_ava))
 
         st.markdown("---")
-        st.subheader("LTV por Plano (Média Anual)")
+        st.subheader("LTV por Plano (Média Ano Fiscal)")
         lt1, lt2, lt3 = st.columns(3)
         v_ess_t = df_ltv_tot['LTV Essencial Total'].apply(clean_sheets_numeric).mean() if 'LTV Essencial Total' in df_ltv_tot.columns else 0
         v_ven_t = df_ltv_tot['LTV Vender Total'].apply(clean_sheets_numeric).mean() if 'LTV Vender Total' in df_ltv_tot.columns else 0
@@ -254,48 +272,58 @@ else:
                 st.plotly_chart(fig_tm, use_container_width=True)
 
     elif view_to_show == 'Clientes':
-        # --- TELA 4: CLIENTES ---
+        # --- TELA 4: CLIENTES (EVOLUÇÃO CRUZADA COM FATURAMENTO) ---
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
+        
+        # Range solicitado: Ago/25 até data atual (vigente)
         range_cli = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
         df_cli_chart = chart_df[chart_df.index.isin(range_cli)]
         
-        st.subheader("Evolução da Base de Clientes")
+        st.subheader("Evolução: Clientes x Faturamento")
         with st.container():
-            fig_cli = go.Figure(go.Scatter(
-                x=df_cli_chart.index, 
-                y=df_cli_chart['Total de Clientes Realizados'], 
-                mode='lines+markers+text', 
-                name='Realizado', 
-                line=dict(color='#69FF4E', width=4, shape='spline'),
-                marker=dict(size=10, color='#FFFFFF', line=dict(width=2, color='#69FF4E')),
-                text=df_cli_chart['Total de Clientes Realizados'], 
-                textposition='top center'
-            ))
-            fig_cli.update_layout(
-                height=450, 
+            fig_combined = make_subplots(specs=[[{"secondary_y": True}]])
+
+            fig_combined.add_trace(
+                go.Scatter(
+                    x=df_cli_chart.index, 
+                    y=df_cli_chart['Receita Realizada'], 
+                    name="Faturamento (R$)",
+                    mode='lines+markers+text', 
+                    line=dict(color='#41D9FF', width=4, shape='spline'),
+                    marker=dict(size=8),
+                    text=[f"R${v/1000:,.0f}k" for v in df_cli_chart['Receita Realizada']],
+                    textposition='top left'
+                ),
+                secondary_y=False,
+            )
+
+            fig_combined.add_trace(
+                go.Scatter(
+                    x=df_cli_chart.index, 
+                    y=df_cli_chart['Total de Clientes Realizados'], 
+                    name="Clientes (Un)",
+                    mode='lines+markers+text', 
+                    line=dict(color='#69FF4E', width=4, shape='spline'),
+                    marker=dict(size=8),
+                    text=df_cli_chart['Total de Clientes Realizados'], 
+                    textposition='bottom right'
+                ),
+                secondary_y=True,
+            )
+
+            fig_combined.update_layout(
+                height=500, 
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)', 
                 font=dict(color="white", size=10),
                 margin=dict(t=30, b=10, l=10, r=10),
                 xaxis=dict(showgrid=False),
-                yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
-            st.plotly_chart(fig_cli, use_container_width=True)
 
-    # --- PÁGINA DE LEADS (COMENTADA COM # CONFORME SOLICITADO) ---
-    # elif view_to_show == 'Leads':
-    #     st.markdown("<h6 style='text-align: left; margin-bottom: 10px;'>Performance de Funil (CRM)</h6>", unsafe_allow_html=True)
-    #     d_leads = load_leads_data() 
-    #     p_keys = [("dois_meses_atras", "2 Meses Atrás"), ("mes_passado", "Mês Passado"), ("este_mes", "Este Mês")]
-    #     c_keys = [("Leads Gerados", "gerados"), ("Leads Qualificados", "qualificados"), ("Reuniões de Diagnóstico", "diagnostico"), ("Reuniões de Proposta", "proposta"), ("Vendas", "vendas")]
-    #     for label_cat, key_cat in c_keys:
-    #         st.markdown(f"<div class='lead-row-title'>{label_cat}</div>", unsafe_allow_html=True)
-    #         cols = st.columns(3)
-    #         for i, (p_key, p_label) in enumerate(p_keys):
-    #             val = d_leads.get(p_key, {}).get(key_cat, 0)
-    #             cols[i].metric(label=p_label, value=int(val), border=True)
-    #         st.markdown("<div style='margin-bottom: -15px;'></div>", unsafe_allow_html=True)
-    #     st.markdown("<br><hr>", unsafe_allow_html=True)
-    #     st.caption(f"Dados sincronizados via CSV em: {d_leads.get('ultima_atualizacao', '---')}")
+            fig_combined.update_yaxes(title_text="Faturamento (R$)", secondary_y=False, gridcolor='rgba(255,255,255,0.05)')
+            fig_combined.update_yaxes(title_text="Clientes (Un)", secondary_y=True, showgrid=False)
+
+            st.plotly_chart(fig_combined, use_container_width=True)
