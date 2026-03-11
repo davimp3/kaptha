@@ -344,7 +344,8 @@ else:
                 font=dict(color="white", size=10),
                 margin=dict(t=30, b=10, l=10, r=10),
                 xaxis=dict(showgrid=False),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                # [ALTERAÇÃO] Legenda movida para a esquerda (x=0, xanchor="left")
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
             )
 
             fig_combined.update_yaxes(title_text="Faturamento (R$)", secondary_y=False, gridcolor='rgba(255,255,255,0.05)')
