@@ -15,10 +15,10 @@ except ImportError as e:
     st.error(f"Erro de Estrutura: Não foi possível encontrar os ficheiros na pasta 'data_loader'. Detalhe: {e}")
     st.stop()
 
-# Configuração da página - initial_sidebar_state="collapsed" ajuda a manter oculta por padrão
-st.set_page_config(page_title="Dashboard MRR", layout="wide", initial_sidebar_state="collapsed")
+# Configuração da página - Restaurado para estado expandido
+st.set_page_config(page_title="Dashboard MRR", layout="wide", initial_sidebar_state="expanded")
 
-# --- AJUSTE DE CSS PARA VISUAL PREMIUM E REMOÇÃO TOTAL DA BARRA LATERAL ---
+# --- AJUSTE DE CSS PARA VISUAL PREMIUM E ACESSO À SIDEBAR ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -28,33 +28,16 @@ st.markdown("""
             font-family: 'Inter', sans-serif !important;
         }
 
-        /* [AJUSTE] REMOVER COMPLETAMENTE O CONTROLE DA BARRA LATERAL E SETAS */
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-        
-        /* Esconder a barra lateral em si caso seja forçada */
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
-
         /* Mantemos apenas o footer escondido para um look mais clean */
         footer {
             visibility: hidden !important;
             height: 0 !important;
         }
 
-        /* Redução de Padding do Container Principal para ocupar a tela toda */
+        /* Redução de Padding do Container Principal */
         [data-testid="stAppViewContainer"] > .main {
             padding-top: 0rem !important;
             padding-bottom: 1rem !important;
-        }
-        
-        /* Ajuste para que o conteúdo não tenha margem esquerda da sidebar oculta */
-        [data-testid="stAppViewContainer"] > .main > .block-container {
-            max-width: 100% !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
         }
 
         /* Estilização dos Blocos de Métrica (Cards) */
@@ -86,7 +69,29 @@ st.markdown("""
             color: #41D9FF;
         }
 
-        /* Ajustes de Legendas e Captions */
+        /* BADGE DE META (A FLAG VERDE) */
+        .goal-badge-container {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .goal-badge {
+            background-color: #69FF4E;
+            color: #000000;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            display: inline-block;
+            box-shadow: 0 0 15px rgba(105, 255, 78, 0.4);
+            margin-bottom: 4px;
+        }
+        .goal-subtext {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.6);
+            display: block;
+        }
+
+        /* Ajustes de Legendas e Captions padrão */
         [data-testid="stCaption"] {
             font-size: 0.75rem !important;
             color: rgba(255, 255, 255, 0.6) !important;
@@ -162,17 +167,30 @@ if not df.empty:
         past_and_current_months = all_months_list
 
 # --- NAVEGAÇÃO E RODÍZIO ---
-# Como a sidebar foi removida via CSS, o rodízio automático é essencial.
-auto_rotate = True # Forçado para True para garantir funcionamento na TV
+st.sidebar.header("Controlos de Visualização")
+auto_rotate = st.sidebar.checkbox("Rodízio automático (30s)", value=True)
 page_options = ['Receita', 'LTV', 'Ticket Médio', 'Clientes'] 
 
-# O refresh continua funcionando em background
-count = st_autorefresh(interval=30000, key="view_switcher")
-view_to_show = page_options[count % len(page_options)]
+if auto_rotate:
+    count = st_autorefresh(interval=30000, key="view_switcher")
+    view_to_show = page_options[count % len(page_options)]
+else:
+    view_to_show = st.sidebar.radio("Navegar para:", page_options)
 
-# Filtros padrões automáticos (já que a sidebar está oculta)
-selected_months_acumulado = past_and_current_months
-selected_months_mrr = default_month_selection
+# --- FILTROS ---
+st.sidebar.markdown("---")
+if not df.empty:
+    if auto_rotate:
+        # Se estiver em rodízio, usa os valores padrão automaticamente
+        selected_months_acumulado = past_and_current_months
+        selected_months_mrr = default_month_selection
+        st.sidebar.info("Modo Automático Ativado")
+    else:
+        # Se o rodízio estiver desligado, permite controlo manual
+        selected_months_acumulado = st.sidebar.multiselect("Filtrar Acumulado (Cards)", options=all_months_list, default=past_and_current_months)
+        selected_months_mrr = st.sidebar.multiselect("Filtrar Referência", options=all_months_list, default=default_month_selection)
+else:
+    st.sidebar.warning("Carregando base de dados...")
 
 # --- LÓGICA DE EXIBIÇÃO POR PÁGINA ---
 if df.empty:
@@ -194,10 +212,16 @@ else:
         with c1: st.metric("Receita Acumulada", format_currency(acum_vigente))
         with c2: st.metric("Receita Total (Ago/25 - Ago/26)", format_currency(total_periodo))
         with c3:
-            with st.container():
+            with st.container(border=True):
                 st.markdown("<h6>Progresso da Meta</h6>", unsafe_allow_html=True)
                 st.progress(min(progresso, 1.0))
-                st.caption(f"{progresso:.1%} de R$ 1.400.000")
+                # Implementação da "Flag" Verde para o percentual
+                st.markdown(f"""
+                    <div class="goal-badge-container">
+                        <span class="goal-badge">{progresso:.1%}</span>
+                        <span class="goal-subtext">de R$ 1.400.000</span>
+                    </div>
+                """, unsafe_allow_html=True)
 
         st.markdown("---")
         st.subheader("Resultado x Faturamento")
@@ -216,10 +240,10 @@ else:
 
     elif view_to_show == 'LTV':
         # --- TELA 2: LTV ---
-        range_vigente = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
-        df_ltv_vig = df[df['Mes'].isin(range_vigente)].copy()
-        range_total = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key('08/2026')]
-        df_ltv_tot = df[df['Mes'].isin(range_total)].copy()
+        range_vigente_ltv = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
+        df_ltv_vig = df[df['Mes'].isin(range_vigente_ltv)].copy()
+        range_total_ltv = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key('08/2026')]
+        df_ltv_tot = df[df['Mes'].isin(range_total_ltv)].copy()
 
         st.subheader("LTV por Plano (Média Vigente)")
         l1, l2, l3 = st.columns(3)
@@ -232,7 +256,7 @@ else:
         with l3: st.metric("LTV Avançado", format_currency(v_ava))
 
         st.markdown("---")
-        st.subheader("LTV por Plano (Média Ano Fiscal)")
+        st.subheader("LTV por Plano (Média Anual)")
         lt1, lt2, lt3 = st.columns(3)
         v_ess_t = df_ltv_tot['LTV Essencial Total'].apply(clean_sheets_numeric).mean() if 'LTV Essencial Total' in df_ltv_tot.columns else 0
         v_ven_t = df_ltv_tot['LTV Vender Total'].apply(clean_sheets_numeric).mean() if 'LTV Vender Total' in df_ltv_tot.columns else 0
@@ -247,12 +271,12 @@ else:
         chart_df = df.copy()
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
-        range_vigente = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
+        range_tm = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
         
         st.subheader("🎟️ Ticket Médio Geral")
         with st.container():
             if 'TM Geral' in chart_df.columns:
-                df_tm_chart = chart_df[chart_df.index.isin(range_vigente)]
+                df_tm_chart = chart_df[chart_df.index.isin(range_tm)]
                 fig_tm = go.Figure(go.Bar(
                     x=df_tm_chart.index, 
                     y=df_tm_chart['TM Geral'], 
@@ -327,3 +351,7 @@ else:
             fig_combined.update_yaxes(title_text="Clientes (Un)", secondary_y=True, showgrid=False)
 
             st.plotly_chart(fig_combined, use_container_width=True)
+
+    # --- PÁGINA DE LEADS (COMENTADA COM #) ---
+    # elif view_to_show == 'Leads':
+    #     ...
