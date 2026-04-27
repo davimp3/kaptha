@@ -301,8 +301,8 @@ else:
         chart_df['Mes'] = pd.Categorical(chart_df['Mes'], categories=all_months_list, ordered=True)
         chart_df = chart_df.sort_values('Mes').set_index('Mes')
         
-        # Range solicitado: Ago/25 até data atual (vigente)
-        range_cli = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key(current_month_str)]
+        # Range solicitado: Ago/25 até Ago/26
+        range_cli = [m for m in all_months_list if get_sort_key('08/2025') <= get_sort_key(m) <= get_sort_key('08/2026')]
         df_cli_chart = chart_df[chart_df.index.isin(range_cli)]
         
         st.subheader("Evolução: Clientes x Faturamento")
