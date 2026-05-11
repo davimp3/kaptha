@@ -223,6 +223,13 @@ else:
                     </div>
                 """, unsafe_allow_html=True)
 
+                # Dispara balões apenas na transição para meta atingida.
+                if progresso >= 1.0 and not st.session_state.get("meta_bateu_100", False):
+                    st.balloons()
+                    st.session_state["meta_bateu_100"] = True
+                elif progresso < 1.0:
+                    st.session_state["meta_bateu_100"] = False
+
         st.markdown("---")
         st.subheader("Resultado x Faturamento")
         res_col = next((c for c in ['Resultado Acumulado', 'Resultado AC', 'AC'] if c in df.columns), None)
